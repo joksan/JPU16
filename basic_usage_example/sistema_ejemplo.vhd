@@ -17,7 +17,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use work.JPU16_Pack.all;
 
 entity Sistema_Ejemplo is
-	port (OscIn:   in  STD_LOGIC;
+   port (OscIn:   in  STD_LOGIC;
          DataOut: out STD_LOGIC_VECTOR (7 downto 0));
 end Sistema_Ejemplo;
 
