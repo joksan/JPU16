@@ -6,12 +6,12 @@ all related documentation written in that language. So please bear in mind that
 while studying the project, you'll find many pieces of text in a language other
 than english in many places.
 
-I'm planning to translate all project code and documentation to english in the
-future, as this will allow the project to reach a wider audience of developers.
-The main reason that I did not start writing everything in english from the
-beggining is that I didn't initially plan on publishing the project, but
-considering that it has grown to a point where it is usable and that some of my
-friends are asking me to make it public, I decided to do so.
+I'm planning to translate all project documentation to english in the future, as
+this will allow the project to reach a wider audience of developers (the code
+itself will remain in spanish). The main reason that I did not write everything
+in english from the beggining is that I didn't initially plan on publishing the
+project, but considering that it has grown to a point where it is usable and
+that some of my friends are asking me to make it public, I decided to do so.
 
 Current progress
 ----------------
@@ -48,6 +48,7 @@ The following improvements are being considered:
 - The addition of a multiplication unit.
 - Extend the programming toolchain:
   - Make the assembler to create linkable object files.
-  - Create a linker program to process the output of the assembler and move here
-    the code generation functionality that currently belongs to the assembler.
+  - Create a linker program to process the output of the assembler and put there
+    all the code generation functionality that currently belongs to the
+    assembler.
   - Create a very simple C compiler (which is a lot of work, to say the least).
