@@ -1,0 +1,25 @@
+Para compilar el ensamblador son necesarios los siguientes paquetes:
+- flex 
+- bison
+De ahi en mas, basta con tener un entorno basico de compilador de C (no necesariamente C++) para
+compilar el programa.
+
+---------------------------------------------------------------------------------------------------
+
+Para compilar el ensamblador, se debe ejecutar el comando
+$make
+
+Luego para instalar, se debe ejecutar:
+$sudo make install
+
+---------------------------------------------------------------------------------------------------
+
+Los siguientes sitios web otorgan informacion util para trabajar con estos programas:
+Flex:
+http://flex.sourceforge.net/manual/
+Bison:
+http://www.gnu.org/software/bison/manual/bison.html
+Aqui se encuentra un excelente tutorial para iniciarse:
+http://aquamentus.com/flex_bison.html
+Tambien es conveniente recordar las reglas de make, para ayudarse a compilar:
+http://www.gnu.org/software/make/manual/make.html

@@ -1,0 +1,53 @@
+IMPORTANT INFORMATION REGARDING LANGUAGE
+----------------------------------------
+
+As a native speaker of spanish, I started the project with code, comments and
+all related documentation written in that language. So please bear in mind that
+while studying the project, you'll find many pieces of text in a language other
+than english in many places.
+
+I'm planning to translate all project code and documentation to english in the
+future, as this will allow the project to reach a wider audience of developers.
+The main reason that I did not start writing everything in english from the
+beggining is that I didn't initially plan on publishing the project, but
+considering that it has grown to a point where it is usable and that some of my
+friends are asking me to make it public, I decided to do so.
+
+Current progress
+----------------
+
+As of now, the following features are implemented:
+- All basic units of the processor are implemented, to the point that it is
+  fully functional and can be simulated or synthesized on an actual FPGA. This
+  includes the ALU, instruction decoder, control unit, program counter, call
+  stack memory, register array, internal busses, etc.
+- Most of the instruction set has been tested, all implemented logic behaves
+  consistently and there are no logic errors as far as I know.
+- Processor timing has also been thoroughly tested. There are no known errors or
+  bugs in this regard to this date.
+- Interrupt logic is finished and is also functional.
+- The assembler program is complete (but not finished) and provides output in
+  different formats. These formats are available:
+  - Normal VHDL output, wich contains memory definitions in a common format that
+    is highly portable among many FPGA series.
+  - Xilinx specific VHDL output, using RAMB16 memory definitions for Spartan 3
+    FPGA devices. This code is also portable to Spartan 6 devices.
+  - MEM data format, for use with Xilinx data2mem utility. This provides a very
+    fast mechanism for updating bitfiles in seconds or less, which is a lot
+    faster than waiting for full synthesis runs.
+  - BMM memory map files, for using along with Xilinx specific VHDL and MEM
+    files.
+
+Future plans
+------------
+
+The following improvements are being considered:
+- Better bit shifting capabilities built into the instruction set, to allow
+  shifting more than one bit at a time. Possibly by implementing a two-stage
+  barrel shifter.
+- The addition of a multiplication unit.
+- Extend the programming toolchain:
+  - Make the assembler to create linkable object files.
+  - Create a linker program to process the output of the assembler and move here
+    the code generation functionality that currently belongs to the assembler.
+  - Create a very simple C compiler (which is a lot of work, to say the least).
