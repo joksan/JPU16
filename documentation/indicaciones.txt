@@ -1,57 +1,16 @@
 Indicaciones generales
 ----------------------
-- Antes de usar el procesador, se recomienda compilar e instalar el ensamblador (ver el archivo
-  "leeme" en el directorio "jpu16asm"), para poder crear programas con el.
-- Para obtener la ayuda de invocacion del ensamblador, ejecute "jpu16asm" sin argumentos.
-
-Pasos para correr el programa de ejemplo
-----------------------------------------
-El directorio "programa_ejemplo" cuenta con varios archivos de ejemplo para correr un simple demo
-de LEDs parpadeantes en una tarjeta Papilio One (version de 500K compuertas). Los LED se conectan
-al puerto A de la misma, por lo que se incluye tambien un archivo .ucf para definir sus conexiones.
-Los pasos a seguir son los siguientes:
-
-- Descomprimir los archivos a un directorio de la PC.
-- Crear un proyecto con el Project Navigator de ISE en un directorio llamado "Proyecto_ISE" junto
-  a los archivos extraidos.
-- Agregar al proyecto los archivos siguientes (no es necesario hacer copias):
-  JPU16_src/JPU16.vhd
-  JPU16_src/JPU16_ALU.vhd
-  JPU16_src/JPU16_BUSES.vhd
-  JPU16_src/JPU16_CU.vhd
-  JPU16_src/JPU16_DEFS.vhd
-  JPU16_src/JPU16_REGS.vhd
-  programa_ejemplo/Sistema_Ejemplo.vhd
-  programa_ejemplo/Sistema_Ejemplo.ucf
-  (Nota: el archivo JPU16_src/JPU16_TEST_BENCH.vhd es opcional, y sirve para simular el procesador)
-- Correr el makefile de ejemplo que viene con el programa para generar los archivos con las
-  definiciones de la memoria en formato VHDL:
-  $make codigo_hdl
-- Agregar los archivos generados al proyecto de ISE (tampoco es necesario hacer copias):
-  programa_ejemplo/JPU16_MEM.vhd
-  programa_ejemplo/Mapa_Memoria.bmm
-- Realizar el proceso de sintesis completa mediante ISE
-- Subir el bitfile generado al FPGA mediante el comando
-  $sudo papilio-prog -f Sistema_Ejemplo.bit
-
-Para actualizar el FPGA con las modificaciones hechas al programa sin necesidad de hacer sintesis,
-seguir los siguientes pasos:
-
-- Generar el archivo Sistema_Reprogramado.bit corriendo make sin argumentos:
-  $make
-- Subir el bitfile generado al FPGA mediante el comando
-  $sudo papilio-prog -f Sistema_Reprogramado.bit
-
-Nota: Existe la posibilidad de tener que ajustar algunas de las rutas o nombres definidos al
-principio del makefile en caso que existan errores. En particular, podria ser necesario redefinir
-la ruta de instalacion del script de configuracion de ISE, definido en la variable nombrada
-"config_ise", sobretodo si se usa una version mas reciente del software.
+- Antes de usar el procesador, se recomienda compilar e instalar el ensamblador
+  (ver el archivo "leeme" en el directorio "jpu16asm"), para poder crear
+  programas con el.
+- Para obtener la ayuda de invocacion del ensamblador, ejecute "jpu16asm" sin
+  argumentos.
 
 Pasos para crear proyectos con JPU16
 ------------------------------------
-- Descomprimir los archivos a un directorio.
-- Crear un proyecto con el Project Navigator de ISE (preferiblemente en un directorio contiguo a
-  los archivos extraidos).
+- Clonar el repositorio o descomprimir los archivos a un directorio.
+- Crear un proyecto con el Project Navigator de ISE (preferiblemente en un
+  directorio contiguo a los archivos extraidos).
 - Agregar al proyecto los archivos siguientes (no es necesario hacer copias):
   JPU16_src/JPU16.vhd
   JPU16_src/JPU16_ALU.vhd

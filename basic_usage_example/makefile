@@ -1,20 +1,20 @@
 #Archivos de entrada
 #-------------------
 #Codigo fuente del programa
-codigo_asm := Programa.asm
+codigo_asm := programa.asm
 #Archivo bitfile producido por sintesis (archivo original)
-bitfile_org := ../Proyecto_ISE/Sistema_Ejemplo.bit
+bitfile_org := proyecto_ISE/Sistema_Ejemplo.bit
 
 #Archivos de salida
 #------------------
 #Definicion de la memoria en formato VHDL mediante primitivas RAMB16
 def_mem_vhd := JPU16_MEM.vhd
 #Mapa de bloques de memoria en formato MEM
-mapa_bmm := Mapa_Memoria.bmm
+mapa_bmm := mapa_memoria.bmm
 #Programa ensamblado en formato MEM
-programa_mem := Programa.mem
+programa_mem := programa.mem
 #Archivo bitfile con el programa actualizado (archivo modificado)
-bitfile_act := Sistema_Reprogramado.bit
+bitfile_act := sistema_reprogramado.bit
 
 #Parametros de memoria
 #---------------------
