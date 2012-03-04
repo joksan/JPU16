@@ -30,6 +30,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use work.JPU16_DEFS.ALL;
+use work.JPU16_EXPORTS.ALL;
 use work.JPU16_MEM_SIZE_DEFS.ALL;
 
 entity JPU16 is
@@ -197,7 +198,7 @@ begin
              SyncReset2 => SyncReset(2),
              SysHold    => SysHold,
              CicloInst  => CicloInst,
-             SolInt      => SolInt,
+             SolInt     => SolInt,
              RestSombra => InstVal.IXRET,
              Wen        => Wen_Banderas,
              EntBand    => SalBusOR_Banderas,
@@ -271,4 +272,17 @@ begin
              SelBus_RAM      => InstVal.MoveRamRd,
              SelBus_IO       => InstVal.IO_IN,
              SalBus          => SalBusOR_BusR);
+
+   -----------------------------------------
+   -- Operaciones con fines de simulacion --
+   -----------------------------------------
+   --Nota: Las operaciones de esta seccion seran eliminadas durante las optimizaciones en
+   --el proceso de sintesis
+
+   --Copia el contenido del contador de programa a la variable del paquete asociado
+   --(JPU16_EXPORTS) para que la pueda acceder el desensamblador
+   Contador_Programa <= PC;
+   --Copia el contenido del bus de programa a la variable Opcode para que la pueda
+   --visualizar el desensamblador
+   Opcode <= BusProg;
 end Funcionamiento;

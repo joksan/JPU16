@@ -4,8 +4,7 @@
 ;El siguiente programa de ejemplo hace uso de un unico puerto de I/O conectado al bus del
 ;procesador para parpadear 8 LEDs conectados al puerto A de una tarjeta Papilio One de 500K.
 ;
-;Siga los pasos del archivo "indicaciones" contenido en el paquete donde vino este archivo para
-;correrlo.
+;Siga los pasos del archivo "readme_es.txt" para correrlo.
 
 code              ;La directiva code se usa para definir secciones de codigo
   move r0, 0      ;Limpia el registro r0

@@ -3,7 +3,7 @@
 -- Autor: Joksan Alvarado
 --
 -- La siguiente entidad VHDL es un ejemplo simple de como conectar un solo puerto de salida al
--- procesador JPU16 para controlar 8 LEDs al exterior del FPGA. Vease el archivo "indicaciones"
+-- procesador JPU16 para controlar 8 LEDs al exterior del FPGA. Vease el archivo "readme_es.txt"
 -- para mas informacion acerca de como integrarlo a un proyecto de ISE y correr el programa de
 -- demostracion.
 

@@ -11,7 +11,7 @@ Please note: The soft core processor is designed to be run on any type of FPGA.
 The instructions below are for Xilinx FPGA's. In order to use the processor on
 other plattforms (e.g. Altera) some adjustmens should be made.
 
-These are the steps to follow:
+In order to run the example, follow the steps given below:
 
 - Clone the git repository or uncompress the downloaded archive into your PC.
 - Create a project with ISE Project Navigator with the name "proyecto_ISE" in

@@ -197,3 +197,23 @@ package JPU16_DEFS is
          SalBus:          out STD_LOGIC_VECTOR (nBits_Bus-1 downto 0));
    end component;
 end JPU16_DEFS;
+
+-------------------------------------------------------------------
+-- Paquete con las señales internas exportadas por el procesador --
+-------------------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use work.JPU16_MEM_SIZE_DEFS.ALL;
+
+package JPU16_EXPORTS is
+   ----------------------------------------------
+   -- Declaracion de elementos para simulacion --
+   ----------------------------------------------
+   --Nota: Las declaraciones de esta seccion seran ignoradas durante las optimizaciones
+   --en el proceso de sintesis
+
+   --Valor actual del contador de programa
+   signal Contador_Programa: STD_LOGIC_VECTOR (nBits_DirProg-1 downto 0);
+   --Codigo de operacion de la instruccion actual
+   signal Opcode: STD_LOGIC_VECTOR (25 downto 0);
+end JPU16_EXPORTS;

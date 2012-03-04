@@ -13,7 +13,7 @@ tipo de FPGA. Las instrucciones abajo son para FPGA de Xilinx. Para poder usar
 el procesador en otras plataformas (por ejemplo Altera) deberian hacerse algunos
 ajustes.
 
-Los pasos a seguir son los siguientes:
+Para correr el ejemplo, siga las siguientes indicaciones:
 
 - Clonar el repositorio git o descomprimir los archivos en la PC.
 - Crear un proyecto con el Project Navigator de ISE con el nombre "proyecto_ISE"
