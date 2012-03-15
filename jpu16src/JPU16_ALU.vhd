@@ -34,17 +34,30 @@ begin
    ---------------------------------------------------------
    process (CodigoOper(2 downto 1), OperandoA, OperandoB)
    begin
-      --La operacion a realizar se determina en base al codigo de operacion
-      case CodigoOper(2 downto 1) is
-      when "00" =>
-         ResultadoLB <= not OperandoA;               --Operacion NOT
-      when "01" =>
-         ResultadoLB <= OperandoA or OperandoB;      --Operacion OR
-      when "10" =>
-         ResultadoLB <= OperandoA and OperandoB;   --Operacion AND
-      when others =>
-         ResultadoLB <= OperandoA xor OperandoB;   --Operacion XOR
-      end case;
+      --Se realizan las operaciones logicas del procesador (NOT, OR, AND y XOR) en forma
+      --sincrona
+      if rising_edge(SysClk) then
+         if CicloInst = '1' and SysHold = '0' then
+            --La operacion a realizar se determina en base al codigo de operacion
+            case CodigoOper(2 downto 1) is
+            when "00" =>
+               ResultadoLB <= not OperandoA;               --Operacion NOT
+            when "01" =>
+               ResultadoLB <= OperandoA or OperandoB;      --Operacion OR
+            when "10" =>
+               ResultadoLB <= OperandoA and OperandoB;   --Operacion AND
+            when others =>
+               ResultadoLB <= OperandoA xor OperandoB;   --Operacion XOR
+            end case;
+         end if;
+      end if;
+      --Nota:
+      --El proceso se realiza secuencialmente (sincronizado al ciclo de instruccion y
+      --habilitado por SysHold como las demas partes secuenciales del CPU) con proposito
+      --de mermar la carga de logica combinacional hacia la bandera de cero y lograr 
+      --mayor velocidad. El proceso puede hacerse en forma totalmente combinacional y sin
+      --afectar la operacion del procesador eliminando la parte sincrona (condiciones if)
+      --convirtiendo el proceso en uno combinacional
    end process;
 
    -- Operaciones de suma y resta
@@ -73,11 +86,10 @@ begin
    ResultadoSR <= ('0' & OperandoA) + SumandoB + BandC_Inicial
                   when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
    --Nota:
-   --El proceso se realiza secuencialmente (sincronizado al ciclo de instruccion y
-   --habilitado por SysHold como las demas partes secuenciales del CPU) con proposito de
-   --mermar la carga de logica combinacional hacia la bandera de acarreo y lograr mayor
-   --velocidad. El proceso puede hacerse en forma totalmente combinacional sin afectar la
-   --operacion eliminando la parte sincrona (segunda linea) de la sentencia anterior.
+   --El proceso se realiza secuencialmente con proposito de mermar la carga de logica
+   --combinacional hacia la bandera de acarreo y lograr mayor velocidad. El proceso puede
+   --hacerse en forma totalmente combinacional sin afectar la operacion eliminando la
+   --parte sincrona (segunda linea) de la sentencia anterior.
 
    -- Seleccion del resultado a la salida de la ALU
    ------------------------------------------------

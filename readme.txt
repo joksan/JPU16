@@ -73,5 +73,5 @@ Processor features:
     carry flag.
 - Instruction timing is 2 clock cycles for every instruction, even jumps and
   calls.
-- Maximum clock speed is about 70MHz on an Spartan 3E FPGA. Higher speeds are
-  possible on Spartan 6 and Cyclone IV.
+- Maximum clock speed is about 90MHz to 100MHz on an Spartan 3E FPGA. Higher
+  speeds are possible on Spartan 6 (about 160MHz) and Cyclone IV (about 150MHz).

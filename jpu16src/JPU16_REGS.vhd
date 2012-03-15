@@ -74,51 +74,87 @@ architecture Funcionamiento of JPU16_REGS_BANDERAS is
    signal Banderas:   GRUPO_BANDERAS  := (others => '0');
    signal BandSombra: BANDERAS_SOMBRA := (others => '0');
 begin
-   --Proceso de actualizacion de las banderas
+   --Proceso de actualizacion de las banderas aritmeticas
    process (SysClk)
    begin
       --Todas las transacciones de las banderas se realizan en sincronia con el reloj
       if rising_edge(SysClk) then
          if SyncReset2 = '1' then
             --En caso de que el CPU sea reiniciado, se limpian las banderas
-            Banderas <= (others => '0');
-            BandSombra <= (others => '0');
+            Banderas.C <= '0';
+            Banderas.Z <= '0';
+            Banderas.N <= '0';
+            Banderas.V <= '0';
          elsif CicloInst = '0' and SysHold = '0' then
             --Si el sistema no es reiniciado, el ciclo de instruccion es el apropiado y
             --tampoco se mantiene el sistema en paro, se procede a actualizar las
             --banderas
-            if SolInt = '1' then
-               --Si ocurre una solicitud de interrupcion, se procede a limpiar la bandera
-               --de interrupcion para impedir que el CPU sea interrumpido nuevamente el
-               --proximo ciclo
-               Banderas.I <= '0';
-
-               --Asimismo, se guarda una copia de todas las banderas en el registro
-               --sombra
-               BandSombra.C <= Banderas.C;
-               BandSombra.Z <= Banderas.Z;
-               BandSombra.N <= Banderas.N;
-               BandSombra.V <= Banderas.V;
-            elsif RestSombra = '1' then
-               --Si no ocurre una solicitud de interrupcion, pero se ejecuta una
-               --instruccion que restaura los registros de sombra (retorno de
-               --interrupcion), se restauran los registros almacenados
+            if RestSombra = '1' then
+               --Si se ejecuta una instruccion que restaura los registros de sombra
+               --(retorno de interrupcion), se recuperan los registros almacenados
                Banderas.C <= BandSombra.C;
                Banderas.Z <= BandSombra.Z;
                Banderas.N <= BandSombra.N;
                Banderas.V <= BandSombra.V;
-
-               --Asimismo, el nuevo estado de la bandera de interrupcion se toma de el
-               --puerto de entrada
-               Banderas.I <= EntBand.I;
-            else
+            elsif SolInt = '0' then
                --Si no hay solicitud de interrupcion ni restauracion de banderas
                --pendiente, se actualizan las banderas con normalidad
                if Wen.C = '1' then Banderas.C <= EntBand.C; end if;
                if Wen.Z = '1' then Banderas.Z <= EntBand.Z; end if;
                if Wen.N = '1' then Banderas.N <= EntBand.N; end if;
                if Wen.V = '1' then Banderas.V <= EntBand.V; end if;
+            end if;
+         end if;
+      end if;
+   end process;
+
+   --Proceso de actualizacion de bandera de interrupcion
+   process (SysClk)
+   begin
+      --Todas las transacciones de las banderas se realizan en sincronia con el reloj
+      if rising_edge(SysClk) then
+         if SyncReset2 = '1' then
+            --En caso de que el CPU sea reiniciado, se limpia la bandera de interrupcion
+            Banderas.I <= '0';
+         elsif CicloInst = '0' and SysHold = '0' then
+            --Si el sistema no es reiniciado, el ciclo de instruccion es el apropiado y
+            --tampoco se mantiene el sistema en paro, se procede a actualizar la bandera
+            if SolInt = '1' then
+               --Si ocurre una solicitud de interrupcion, se procede a limpiar la bandera
+               --para impedir que el CPU sea interrumpido nuevamente en el proximo ciclo
+               Banderas.I <= '0';
+            elsif RestSombra = '1' then
+               --Al retornar de una interrupcion el nuevo estado de la bandera se toma de
+               --el puerto de entrada (dato proveniente del opcode)
+               Banderas.I <= EntBand.I;
+            else
+               --Si no ocurren interrupciones o retornos, se actualiza la bandera con
+               --normalidad (en caso que haya instrucciones que lo soliciten)
                if Wen.I = '1' then Banderas.I <= EntBand.I; end if;
+            end if;
+         end if;
+      end if;
+   end process;
+
+   --Proceso de actualizacion de las banderas sombra
+   process (SysClk)
+   begin
+      --Todas las transacciones de las banderas se realizan en sincronia con el reloj
+      if rising_edge(SysClk) then
+         if SyncReset2 = '1' then
+            --En caso de que el CPU sea reiniciado, se limpia el registro sombra
+            BandSombra <= (others => '0');
+         elsif CicloInst = '0' and SysHold = '0' then
+            --Si el sistema no es reiniciado, el ciclo de instruccion es el apropiado y
+            --tampoco se mantiene el sistema en paro, se procede a actualizar las
+            --banderas sombra
+            if SolInt = '1' then
+               --Solo se guarda una copia de todas las banderas en el registro sombra en
+               --caso de que ocurra una solicitud de interrupcion
+               BandSombra.C <= Banderas.C;
+               BandSombra.Z <= Banderas.Z;
+               BandSombra.N <= Banderas.N;
+               BandSombra.V <= Banderas.V;
             end if;
          end if;
       end if;
