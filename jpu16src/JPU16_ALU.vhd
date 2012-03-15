@@ -25,14 +25,14 @@ end JPU16_ALU_LBSR;
 architecture Funcionamiento of JPU16_ALU_LBSR is
    signal SumandoB: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
    signal BandC_Inicial: STD_LOGIC;
-   signal ResultadoLB: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
+   signal ResultadoLB: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0) := (others => '0');
    signal ResultadoSR: STD_LOGIC_VECTOR (nBits_ALU downto 0) := (others => '0');
    signal ResultadoFinal: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
 
 begin
    --Operaciones logicas NOT, OR, AND y XOR (logica binaria)
    ---------------------------------------------------------
-   process (CodigoOper(2 downto 1), OperandoA, OperandoB)
+   process (SysClk)
    begin
       --Se realizan las operaciones logicas del procesador (NOT, OR, AND y XOR) en forma
       --sincrona
@@ -41,9 +41,9 @@ begin
             --La operacion a realizar se determina en base al codigo de operacion
             case CodigoOper(2 downto 1) is
             when "00" =>
-               ResultadoLB <= not OperandoA;               --Operacion NOT
+               ResultadoLB <= not OperandoA;             --Operacion NOT
             when "01" =>
-               ResultadoLB <= OperandoA or OperandoB;      --Operacion OR
+               ResultadoLB <= OperandoA or OperandoB;    --Operacion OR
             when "10" =>
                ResultadoLB <= OperandoA and OperandoB;   --Operacion AND
             when others =>
