@@ -1,7 +1,7 @@
 #Archivos de entrada
 #-------------------
 #Codigo fuente del programa
-codigo_asm := simulacion.asm
+codigo_asm := simulation_example.asm
 
 #Archivos de salida
 #------------------
