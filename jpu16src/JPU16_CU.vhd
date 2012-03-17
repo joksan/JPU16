@@ -11,7 +11,7 @@ entity JPU16_CU is
    generic (nBits_BusProg: integer := 10);
    port (SysClk:          in  STD_LOGIC;
          EntReset:        in  STD_LOGIC;
-         SalSyncReset:    out STD_LOGIC_VECTOR (2 downto 0);
+         SalSyncReset:    out STD_LOGIC_VECTOR (2 downto 1);
          SysHold:         in  STD_LOGIC;
          SalCicloInst:    out STD_LOGIC;
          EntInt:          in  STD_LOGIC;
@@ -72,7 +72,7 @@ begin
    end process;
 
    --Se traslada las señales globales de reset al puerto de salida
-   SalSyncReset <= SyncReset;
+   SalSyncReset <= SyncReset(2 downto 1);
 
    --Se traslada el ciclo de instruccion actual al puerto de salida
    SalCicloInst <= CicloInst;

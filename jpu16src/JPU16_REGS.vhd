@@ -63,7 +63,7 @@ entity JPU16_REGS_BANDERAS is
          SyncReset2: in  STD_LOGIC;
          SysHold:    in  STD_LOGIC;
          CicloInst:  in  STD_LOGIC;
-         SolInt:      in  STD_LOGIC;
+         SolInt:     in  STD_LOGIC;
          RestSombra: in  STD_LOGIC;
          Wen:        in  GRUPO_BANDERAS;
          EntBand:    in  GRUPO_BANDERAS;

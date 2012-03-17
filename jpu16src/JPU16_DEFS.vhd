@@ -55,7 +55,7 @@ package JPU16_DEFS is
    generic (nBits_BusProg: integer := 10);
    port (SysClk:          in  STD_LOGIC;
          EntReset:        in  STD_LOGIC;
-         SalSyncReset:    out STD_LOGIC_VECTOR (2 downto 0);
+         SalSyncReset:    out STD_LOGIC_VECTOR (2 downto 1);
          SysHold:         in  STD_LOGIC;
          SalCicloInst:    out STD_LOGIC;
          EntInt:          in  STD_LOGIC;

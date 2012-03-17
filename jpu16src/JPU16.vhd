@@ -7,18 +7,27 @@ use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 package JPU16_Pack is
+   --Cantidad de bits de datos que maneja el procesador
+   constant JPU16_DataBits: integer := 16;
+
+   --Declaracion de tipos de bus
+   type JPU16_INPUT_BUS is array (integer range <>) of
+      STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   subtype JPU16_OUTPUT_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   subtype JPU16_IO_ADDR_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+
+   --Declaracion del componente principal del procesador
    component JPU16
-   generic (nBits_BusProg: integer := 26;
-            nBits_BusDatos: integer := 16);
-   port (EntSysClk:      in  STD_LOGIC;
-         EntReset:       in  STD_LOGIC;
-         EntSysHold:     in  STD_LOGIC;
-         EntInt:         in  STD_LOGIC;
-         EntBusIO:       in  STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
-         SalBusIO:       out STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
-         DirBusIO:       out STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
-         RD_IO:          out STD_LOGIC;
-         WR_IO:          out STD_LOGIC);
+   generic (nInputPorts: integer := 1);
+   port (SysClk:  in  STD_LOGIC;
+         Reset:   in  STD_LOGIC;
+         SysHold: in  STD_LOGIC;
+         Int:     in  STD_LOGIC;
+         IO_Din:  in  JPU16_INPUT_BUS (nInputPorts-1 downto 0);
+         IO_Dout: out JPU16_OUTPUT_BUS;
+         IO_Addr: out JPU16_IO_ADDR_BUS;
+         IO_RD:   out STD_LOGIC;
+         IO_WR:   out STD_LOGIC);
    end component;
 end JPU16_Pack;
 
@@ -32,33 +41,35 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use work.JPU16_DEFS.ALL;
 use work.JPU16_EXPORTS.ALL;
 use work.JPU16_MEM_SIZE_DEFS.ALL;
+use work.JPU16_Pack.ALL;
 
 entity JPU16 is
-   generic (nBits_BusProg: integer := 26;
-            nBits_BusDatos: integer := 16);
-   port (EntSysClk:      in  STD_LOGIC;
-         EntReset:       in  STD_LOGIC;
-         EntSysHold:     in  STD_LOGIC;
-         EntInt:         in  STD_LOGIC;
-         EntBusIO:       in  STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
-         SalBusIO:       out STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
-         DirBusIO:       out STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
-         RD_IO:          out STD_LOGIC;
-         WR_IO:          out STD_LOGIC);
+   generic (nInputPorts: integer := 1);
+   port (SysClk:  in  STD_LOGIC;
+         Reset:   in  STD_LOGIC;
+         SysHold: in  STD_LOGIC;
+         Int:     in  STD_LOGIC;
+         IO_Din:  in  JPU16_INPUT_BUS (nInputPorts-1 downto 0);
+         IO_Dout: out JPU16_OUTPUT_BUS;
+         IO_Addr: out JPU16_IO_ADDR_BUS;
+         IO_RD:   out STD_LOGIC;
+         IO_WR:   out STD_LOGIC);
 end JPU16;
 
 architecture Funcionamiento of JPU16 is
-   type MULTI_GRUPO_BANDERAS is array (integer range <>) of GRUPO_BANDERAS;
-   subtype BUS_DATOS is STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
+   constant nBits_BusProg: integer := 26;
+
+   subtype BUS_DATOS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
    type MULTI_BUS_DATOS is array (integer range <>) of BUS_DATOS;
+   type MULTI_GRUPO_BANDERAS is array (integer range <>) of GRUPO_BANDERAS;
 
    -------------------------------------
    -- Declaracion de señales internas --
    -------------------------------------
-   signal SyncReset: STD_LOGIC_VECTOR (2 downto 0);
-   signal SysHold:   STD_LOGIC := '0';
-   signal CicloInst: STD_LOGIC;
-   signal SolInt:    STD_LOGIC;
+   signal SyncReset:   STD_LOGIC_VECTOR (2 downto 1);
+   signal SyncSysHold: STD_LOGIC := '0';
+   signal CicloInst:   STD_LOGIC;
+   signal SolInt:      STD_LOGIC;
 
    signal PC:      STD_LOGIC_VECTOR (nBits_DirProg-1 downto 0);
    signal BusProg: STD_LOGIC_VECTOR (nBits_BusProg-1 downto 0);
@@ -86,11 +97,11 @@ begin
    -----------------------------------------------
    -- operaciones de manejo de señales internas --
    -----------------------------------------------
-   process (EntSysClk)
+   process (SysClk)
    begin
       --Las siguientes operaciones se realizan en sincronia con el reloj
-      if rising_edge(EntSysClk) then
-         SysHold <= EntSysHold;
+      if rising_edge(SysClk) then
+         SyncSysHold <= SysHold;
       end if;
    end process;
 
@@ -107,7 +118,7 @@ begin
    BandVal_ALU_LBSR <= InstVal.ALU_LBSR_NR or InstVal.ALU_LBSR;
 
    --La entrada 0 del bus Q contiene el valor literal contenido en la instruccion
-   EntBusOR_BusQ(0) <= BusProg(nBits_BusDatos-1 downto 0);
+   EntBusOR_BusQ(0) <= BusProg(JPU16_DataBits-1 downto 0);
 
    --La entrada 2 del bus R contiene la salida del bus Q (para instrucciones de
    --movimiento entre registros y de literales)
@@ -116,13 +127,25 @@ begin
    ------------------------------------------------
    -- Mapeo de los puertos de entradas y salidas --
    ------------------------------------------------
-   --Puertos de entradas y salidas
-   EntBusOR_BusR(4) <= EntBusIO;
-   SalBusIO <= BusP;
-   DirBusIO <= SalBusOR_BusQ;
-   RD_IO <= '1' when InstVal.IO_IN = '1' and CicloInst = '0' and SyncReset(2) = '0' and
+   --Puertos de entrada
+   process (IO_Din)
+      variable Resultado: BUS_DATOS;
+   begin
+      Resultado := (others => '0');
+      for i in 0 to nInputPorts-1 loop
+         Resultado := Resultado or IO_Din(i);
+      end loop;
+      EntBusOR_BusR(4) <= Resultado;
+   end process;
+
+   --Puertos de salida
+   IO_Dout <= BusP;
+   IO_Addr <= SalBusOR_BusQ;
+
+   --Señales de control del bus de I/O:
+   IO_RD <= '1' when InstVal.IO_IN = '1' and CicloInst = '0' and SyncReset(2) = '0' and
             SolInt = '0' else '0';
-   WR_IO <= '1' when InstVal.IO_OUT = '1' and CicloInst = '0' and SyncReset(2) = '0' and
+   IO_WR <= '1' when InstVal.IO_OUT = '1' and CicloInst = '0' and SyncReset(2) = '0' and
             SolInt = '0' else '0';
 
    --Señales de control de la memoria RAM:
@@ -139,12 +162,12 @@ begin
    ---------------------------------
    CU: JPU16_CU
    generic map (nBits_BusProg => nBits_BusProg)
-   port map (SysClk          => EntSysClk,
-             EntReset        => EntReset,
+   port map (SysClk          => SysClk,
+             EntReset        => Reset,
              SalSyncReset    => SyncReset,
-             SysHold         => SysHold,
+             SysHold         => SyncSysHold,
              SalCicloInst    => CicloInst,
-             EntInt          => EntInt,
+             EntInt          => Int,
              EntBandI        => Banderas.I,
              SalSolInt       => SolInt,
              EntBusProg      => BusProg(nBits_BusProg-1 downto nBits_BusProg-10),
@@ -152,9 +175,9 @@ begin
              SalWen_Banderas => Wen_Banderas);
 
    ALU_LBSR: JPU16_ALU_LBSR
-   generic map (nBits_ALU => nBits_BusDatos)
-   port map (SysClk     => EntSysClk,
-             SysHold    => SysHold,
+   generic map (nBits_ALU => JPU16_DataBits)
+   port map (SysClk     => SysClk,
+             SysHold    => SyncSysHold,
              CicloInst  => CicloInst,
              OperandoA  => BusP,
              OperandoB  => SalBusOR_BusQ,
@@ -168,7 +191,7 @@ begin
    EntBusOR_Banderas(1).I <= '0';
 
    ALU_LD: JPU16_ALU_LD
-   generic map (nBits_ALU => nBits_BusDatos)
+   generic map (nBits_ALU => JPU16_DataBits)
    port map (Operando   => BusP,
              Resultado  => EntBusOR_BusR(1),
              CodigoOper => BusProg(nBits_BusProg-4 downto nBits_BusProg-6),
@@ -180,23 +203,23 @@ begin
    EntBusOR_Banderas(2).I <= '0';
 
    REGS_RXX: JPU16_REGS_RXX
-   generic map (nBits_Regs => nBits_BusDatos)
-   port map (SysClk     => EntSysClk,
+   generic map (nBits_Regs => JPU16_DataBits)
+   port map (SysClk     => SysClk,
              SyncReset2 => SyncReset(2),
-             SysHold    => SysHold,
+             SysHold    => SyncSysHold,
              CicloInst  => CicloInst,
              SolInt     => SolInt,
              InX        => SalBusOR_BusR,
              OutX       => BusP,
              OutY       => EntBusOR_BusQ(1),
-             SelX       => BusProg(nBits_BusDatos+3 downto nBits_BusDatos),
-             SelY       => BusProg(nBits_BusDatos-1 downto nBits_BusDatos-4),
+             SelX       => BusProg(JPU16_DataBits+3 downto JPU16_DataBits),
+             SelY       => BusProg(JPU16_DataBits-1 downto JPU16_DataBits-4),
              WenX       => BusProg(nBits_BusProg-1));
 
    REGS_BANDERAS: JPU16_REGS_BANDERAS
-   port map (SysClk     => EntSysClk,
+   port map (SysClk     => SysClk,
              SyncReset2 => SyncReset(2),
-             SysHold    => SysHold,
+             SysHold    => SyncSysHold,
              CicloInst  => CicloInst,
              SolInt     => SolInt,
              RestSombra => InstVal.IXRET,
@@ -206,9 +229,9 @@ begin
 
    REGS_PC: JPU16_REGS_PC
    generic map (nBits_PC => nBits_DirProg)
-   port map (SysClk     => EntSysClk,
+   port map (SysClk     => SysClk,
              SyncReset1 => SyncReset(1),
-             SysHold    => SysHold,
+             SysHold    => SyncSysHold,
              CicloInst  => CicloInst,
              SolInt     => SolInt,
              EntPC      => SalBusOR_BusQ(nBits_DirProg - 1 downto 0),
@@ -225,16 +248,16 @@ begin
 
    PROG_MEM: JPU16_PROG_MEM
    generic map (nBits_BusProg => nBits_BusProg)
-   port map (SysClk    => EntSysClk,
-             SysHold   => SysHold,
+   port map (SysClk    => SysClk,
+             SysHold   => SyncSysHold,
              CicloInst => CicloInst,
              Direccion => PC,
              DatoProg  => BusProg);
 
    RAM: JPU16_RAM
-   generic map (nBits_BusDatos => nBits_BusDatos)
-   port map (SysClk    => EntSysClk,
-             SysHold   => SysHold,
+   generic map (nBits_BusDatos => JPU16_DataBits)
+   port map (SysClk    => SysClk,
+             SysHold   => SyncSysHold,
              Ren       => RAM_Ren,
              Wen       => RAM_Wen,
              Direccion => SalBusOR_BusQ(nBits_DirDatos-1 downto 0),
@@ -253,14 +276,14 @@ begin
              SalBus          => SalBusOR_Banderas);
 
    BUS_OR_Q: JPU16_BUS_OR_Q
-   generic map (nBits_Bus => nBits_BusDatos)
+   generic map (nBits_Bus => JPU16_DataBits)
    port map (EntBus_INSTR    => EntBusOR_BusQ(0),
              EntBus_REGS_RXX => EntBusOR_BusQ(1),
              SelBus_ModoDir  => BusProg(nBits_BusProg-6),
              SalBus          => SalBusOR_BusQ);
 
    BUS_OR_R: JPU16_BUS_OR_R
-   generic map (nBits_Bus => nBits_BusDatos)
+   generic map (nBits_Bus => JPU16_DataBits)
    port map (EntBus_ALU_LBSR => EntBusOR_BusR(0),
              EntBus_ALU_LD   => EntBusOR_BusR(1),
              EntBus_Q        => EntBusOR_BusR(2),
