@@ -28,12 +28,12 @@ Para correr el codigo de ejemplo, siga las siguientes indicaciones:
   jpu16src/JPU16_REGS.vhd
   simulation_scripts/JPU16_DISASM.vhd
   simulation_example/JPU16_TEST_BENCH.vhd
-- Compilar el codigo de ejemplo en "simulation_example/simulacion.asm" por medio
-  de correr el makefile:
+- Compilar el codigo de ejemplo en "simulation_example/simulation_example.asm"
+  por medio de correr el makefile:
   $cd simulation_example
   $make
   Alternativamente, puede invocarse directamente jpu16asm con la opcion -v:
-  $jpu16asm simulacion.asm -p 512 -r 1024 -v JPU16_MEM.vhd
+  $jpu16asm simulation_example.asm -p 512 -r 1024 -v JPU16_MEM.vhd
 - Agregar el codigo VHDL generado (JPU16_MEM.vhd) al proyecto de ISE.
 - En el navegador de proyectos ISE, cambiar a la vista de simulacion y
   seleccionar la entidad llamada "Banca_JPU16" dentro de la jerarquia del
@@ -42,7 +42,7 @@ Para correr el codigo de ejemplo, siga las siguientes indicaciones:
   seleccionar propiedades.
 - Activar la casilla llamada "Use Custom Simulation Command File", luego en el
   campo "Custom Simulation Command File" explorar y buscar el archivo
-  "simulation_scripts/jpu16_simulation.tcl". Hacer click en OK para cerrar el
+  "simulation_example/simulation_example.tcl". Hacer click en OK para cerrar el
   cuadro de dialogo.
 - Ejecutar el proceso llamado "Simulate Behavioral Model" para iniciar la
   simulacion de ISim.

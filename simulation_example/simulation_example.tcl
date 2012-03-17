@@ -1,4 +1,4 @@
-wave add /banca_jpu16/test_cpu/EntSysClk
+wave add /banca_jpu16/test_cpu/SysClk
 wave add /banca_jpu16/test_cpu/PC -radix unsigned
 wave add /JPU16_DISASM_DEFS/Instruccion -radix ascii -color cyan
 
@@ -21,9 +21,9 @@ wave add /banca_jpu16/test_cpu/REGS_RXX/RegsR(1) -name r1 -into $grupo_regs -rad
 wave add /banca_jpu16/test_cpu/REGS_RXX/RegsR(0) -name r0 -into $grupo_regs -radix hex
 
 wave add /banca_jpu16/test_cpu/Banderas
-wave add /banca_jpu16/test_cpu/EntBusIO -radix hex
-wave add /banca_jpu16/test_cpu/SalBusIO -radix hex
-wave add /banca_jpu16/test_cpu/DirBusIO -radix hex
-wave add /banca_jpu16/test_cpu/RD_IO
-wave add /banca_jpu16/test_cpu/WR_IO
+wave add /banca_jpu16/test_cpu/IO_Din -radix hex
+wave add /banca_jpu16/test_cpu/IO_Dout -radix hex
+wave add /banca_jpu16/test_cpu/IO_Addr -radix hex
+wave add /banca_jpu16/test_cpu/IO_RD
+wave add /banca_jpu16/test_cpu/IO_WR
 run 500ns
