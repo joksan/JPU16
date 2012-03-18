@@ -34,7 +34,7 @@ In order to run the example, follow the steps given below:
   basic_usage_example/mapa_memoria.bmm
 - Run the full sinthesis process with ISE
 - Upload the generated bitfile into the FPGA with the command:
-  $papilio-prog -f proyecto_ISE/sistema_ejemplo.bit
+  $papilio-prog -f proyecto_ISE/Sistema_ejemplo.bit
   Note: If you don't have a Papilio board, you may use the software intended for
   your hardware instead.
 

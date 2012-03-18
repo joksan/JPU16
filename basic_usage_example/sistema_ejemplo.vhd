@@ -49,13 +49,13 @@ begin
 
    --Se genera la instancia del procesador
    CPU: JPU16
-   port map (EntSysClk => OscIn,    --Entrada de reloj
-             EntReset => '0',       --Entrada de reset (no usada)
-             EntSysHold => '0',     --Entrada de retencion (no usada)
-             EntInt => '0',         --Entrada de interrupcion (no usada)
-             EntBusIO => X"0000",   --Bus de entrada (no usado)
-             SalBusIO => IO_Sal,    --Bus de salida
-             DirBusIO => open,      --Bus de direcciones (no usado)
-             RD_IO => open,         --Señal de lectura (no usada)
-             WR_IO => IO_WR);       --Señal de escritura
+   port map (SysClk => OscIn,       --Entrada de reloj
+             Reset => '0',          --Entrada de reset (no usada)
+             SysHold => '0',        --Entrada de retencion (no usada)
+             Int => '0',            --Entrada de interrupcion (no usada)
+             IO_Din(0) => X"0000",  --Bus de entrada (no usado)
+             IO_Dout => IO_Sal,     --Bus de salida
+             IO_Addr => open,       --Bus de direcciones (no usado)
+             IO_RD => open,         --Señal de lectura (no usada)
+             IO_WR => IO_WR);       --Señal de escritura
 end Funcionamiento;

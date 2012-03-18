@@ -36,7 +36,7 @@ Para correr el ejemplo, siga las siguientes indicaciones:
   basic_usage_example/mapa_memoria.bmm
 - Realizar el proceso de sintesis completa mediante ISE
 - Subir el bitfile generado al FPGA mediante el comando
-  $papilio-prog -f sistema_ejemplo.bit
+  $papilio-prog -f proyecto_ISE/Sistema_ejemplo.bit
   Nota: En caso de no contar con una tarjeta Papilio, puede usarse el software
   designado para su hardware en vez.
 
