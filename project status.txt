@@ -42,10 +42,11 @@ Future plans
 ------------
 
 The following improvements are being considered:
-- Better bit shifting capabilities built into the instruction set, to allow
-  shifting more than one bit at a time. Possibly by implementing a two-stage
-  barrel shifter.
 - The addition of a multiplication unit.
+- Add multiple "pre-built" peripherals such as I/O Ports, timers, etc. in order
+  to provide a complete embedded system and decrease deploying time. In this
+  regard, every peripheral is expected to be optional so the user decides what
+  to include at any moment.
 - Extend the programming toolchain:
   - Make the assembler to create linkable object files.
   - Create a linker program to process the output of the assembler and put there

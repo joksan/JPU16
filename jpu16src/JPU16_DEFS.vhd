@@ -84,7 +84,11 @@ package JPU16_DEFS is
 
    component JPU16_ALU_LD
    generic (nBits_ALU: integer := 16);
-   port (Operando: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
+   port (SysClk: in STD_LOGIC;
+         SysHold: in STD_LOGIC;
+         CicloInst: in STD_LOGIC;
+         OperandoA: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
+         OperandoB: in STD_LOGIC_VECTOR (3 downto 0);
          Resultado: out STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
          CodigoOper: in STD_LOGIC_VECTOR (2 downto 0);
          EntBandC: in STD_LOGIC;

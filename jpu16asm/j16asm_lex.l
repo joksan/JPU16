@@ -103,6 +103,19 @@
 (?i:ror)    return TI_ROR;
 (?i:rorc)   return TI_RORC;
 
+(?i:je)     return TI_JMPZ;     //Nombres de instruccion que son alias
+(?i:jne)    return TI_JMPNZ;
+(?i:jae)    return TI_JMPC;
+(?i:jb)     return TI_JMPNC;
+(?i:jge)    return TI_JMPP;
+(?i:jl)     return TI_JMPN;
+(?i:ce)     return TI_CALLZ;
+(?i:cne)    return TI_CALLNZ;
+(?i:cae)    return TI_CALLC;
+(?i:cb)     return TI_CALLNC;
+(?i:cge)    return TI_CALLP;
+(?i:cl)     return TI_CALLN;
+
 (?i:data)   return TD_DATA;     //Nombres de directivas
 (?i:code)   return TD_CODE;
 (?i:word)   return TD_WORD;

@@ -105,7 +105,7 @@ begin
    --Determinacion de las instrucciones relacionadas a la parte de logica de
    --desplazamiento de la ALU
    SalInstVal.ALU_LD <=
-      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-3) = "110" else '0';
+      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-5) = "11100" else '0';
 
    --Decodificacion de las instrucciones que afectan a las banderas, tanto las
    --instrucciones CLRX/SETX asi como IDRET/IERET
@@ -138,14 +138,14 @@ begin
          and EntBusProg(nBits_BusProg-5) = '1'
       --Para las operaciones de desplazamiento, se actualizan acarreo, cero y negativo
       else (C => '1', Z => '1', N => '1', V => '0', I => '0') when
-         EntBusProg(nBits_BusProg-1 downto nBits_BusProg-3) = "110"
+         EntBusProg(nBits_BusProg-1 downto nBits_BusProg-5) = "11100"
       --Para todas las demas instrucciones, no se actualiza ninguna bandera
       else (others => '0');
 
    --Decodificacion de las instrucciones de movimiento de datos entre registros y desde
    --literales
    SalInstVal.MoveRegInm <=
-      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-5) = "11100" else '0';
+      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-5) = "11101" else '0';
 
    --Decodificacion de las instrucciones de lectura y escritura de datos con la RAM
    SalInstVal.MoveRamRd <=

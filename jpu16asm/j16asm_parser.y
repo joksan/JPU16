@@ -337,28 +337,40 @@ instr:
   | TI_SUBB T_REG ',' T_REG     { $$ = (0b101111 << 20) | ($2 << 16) | ($4 << 12); }
 
   //Noveno bloque: operaciones de desplazamiento de bits
-    //shl0 reg
-  | TI_SHL0 T_REG       { $$ = 0b110000 << 20 | $2 << 16; }
-    //shl1 reg
-  | TI_SHL1 T_REG       { $$ = 0b110001 << 20 | $2 << 16; }
-    //rol reg
-  | TI_ROL T_REG        { $$ = 0b110010 << 20 | $2 << 16; }
+    //shl0 reg, lit
+  | TI_SHL0 T_REG ',' exp     { $$ = (0b111000 << 20) | (0x0 << 9) | ($2 << 16) | ($4 & 0x000F); }
+    //shl0 reg, reg
+  | TI_SHL0 T_REG ',' T_REG   { $$ = (0b111001 << 20) | (0x0 << 9) | ($2 << 16) | ($4 << 12); }
+    //shl1 reg, lit
+  | TI_SHL1 T_REG ',' exp     { $$ = (0b111000 << 20) | (0x1 << 9) | ($2 << 16) | ($4 & 0x000F); }
+    //shl1 reg, reg
+  | TI_SHL1 T_REG ',' T_REG   { $$ = (0b111001 << 20) | (0x1 << 9) | ($2 << 16) | ($4 << 12); }
+    //rol reg, lit
+  | TI_ROL T_REG ',' exp      { $$ = (0b111000 << 20) | (0x2 << 9) | ($2 << 16) | ($4 & 0x000F); }
+    //rol reg, reg
+  | TI_ROL T_REG ',' T_REG    { $$ = (0b111001 << 20) | (0x2 << 9) | ($2 << 16) | ($4 << 12); }
     //rolc reg
-  | TI_ROLC T_REG       { $$ = 0b110011 << 20 | $2 << 16; }
-    //shr0 reg
-  | TI_SHR0 T_REG       { $$ = 0b110100 << 20 | $2 << 16; }
-    //shr1 reg
-  | TI_SHR1 T_REG       { $$ = 0b110101 << 20 | $2 << 16; }
-    //ror reg
-  | TI_ROR T_REG        { $$ = 0b110110 << 20 | $2 << 16; }
+  | TI_ROLC T_REG             { $$ = (0b111000 << 20) | (0x3 << 9) | ($2 << 16) | 0x1; }
+    //shr0 reg, lit
+  | TI_SHR0 T_REG ',' exp     { $$ = (0b111000 << 20) | (0x4 << 9) | ($2 << 16) | ($4 & 0x000F); }
+    //shr0 reg, reg
+  | TI_SHR0 T_REG ',' T_REG   { $$ = (0b111001 << 20) | (0x4 << 9) | ($2 << 16) | ($4 << 12); }
+    //shr1 reg, lit
+  | TI_SHR1 T_REG ',' exp     { $$ = (0b111000 << 20) | (0x5 << 9) | ($2 << 16) | ($4 & 0x000F); }
+    //shr1 reg, reg
+  | TI_SHR1 T_REG ',' T_REG   { $$ = (0b111001 << 20) | (0x5 << 9) | ($2 << 16) | ($4 << 12); }
+    //ror reg, lit
+  | TI_ROR T_REG ',' exp      { $$ = (0b111000 << 20) | (0x6 << 9) | ($2 << 16) | ($4 & 0x000F); }
+    //ror reg, reg
+  | TI_ROR T_REG ',' T_REG    { $$ = (0b111001 << 20) | (0x6 << 9) | ($2 << 16) | ($4 << 12); }
     //rorc reg
-  | TI_RORC T_REG       { $$ = 0b110111 << 20 | $2 << 16; }
+  | TI_RORC T_REG             { $$ = (0b111000 << 20) | (0x7 << 9) | ($2 << 16) | 0x1; }
 
   //Decimo bloque: Instrucciones de entrada de datos hacia el CPU (desde literal, registro, memoria o I/O)
     //move reg, lit
-  | TI_MOVE T_REG ',' exp               { $$ = (0b111000 << 20) | ($2 << 16) | ($4 & 0xFFFF); }
+  | TI_MOVE T_REG ',' exp               { $$ = (0b111010 << 20) | ($2 << 16) | ($4 & 0xFFFF); }
     //move reg, reg
-  | TI_MOVE T_REG ',' T_REG             { $$ = (0b111001 << 20) | ($2 << 16) | ($4 << 12); }
+  | TI_MOVE T_REG ',' T_REG             { $$ = (0b111011 << 20) | ($2 << 16) | ($4 << 12); }
     //move reg, [dir]
   | TI_MOVE T_REG ',' '[' exp   ']'     { $$ = (0b111100 << 20) | ($2 << 16) | ($5 & 0xFFFF); }
     //move reg, [reg]

@@ -87,6 +87,7 @@ architecture Funcionamiento of JPU16 is
 
    signal EntBusOR_BusQ: MULTI_BUS_DATOS (1 downto 0);
    signal SalBusOR_BusQ: BUS_DATOS;
+   signal RegSal_BusQ: BUS_DATOS := (others => '0');
 
    signal EntBusOR_BusR: MULTI_BUS_DATOS (4 downto 0);
    signal SalBusOR_BusR: BUS_DATOS;
@@ -120,9 +121,14 @@ begin
    --La entrada 0 del bus Q contiene el valor literal contenido en la instruccion
    EntBusOR_BusQ(0) <= BusProg(JPU16_DataBits-1 downto 0);
 
-   --La entrada 2 del bus R contiene la salida del bus Q (para instrucciones de
+   --La salida del bus Q es capturada en un registro, para disminuir la carga
+   --combinacional de las instrucciones de movimiento entre registros y literales
+   RegSal_BusQ <= SalBusOR_BusQ
+                  when rising_edge(SysClk) and CicloInst = '1' and SyncSysHold = '0';
+
+   --La entrada 2 del bus R contiene el registro del bus Q (para instrucciones de
    --movimiento entre registros y de literales)
-   EntBusOR_BusR(2) <= SalBusOR_BusQ;
+   EntBusOR_BusR(2) <= RegSal_BusQ;
 
    ------------------------------------------------
    -- Mapeo de los puertos de entradas y salidas --
@@ -192,9 +198,13 @@ begin
 
    ALU_LD: JPU16_ALU_LD
    generic map (nBits_ALU => JPU16_DataBits)
-   port map (Operando   => BusP,
+   port map (SysClk     => SysClk,
+             SysHold    => SyncSysHold,
+             CicloInst  => CicloInst,
+             OperandoA  => BusP,
+             OperandoB  => SalBusOR_BusQ(3 downto 0),
              Resultado  => EntBusOR_BusR(1),
-             CodigoOper => BusProg(nBits_BusProg-4 downto nBits_BusProg-6),
+             CodigoOper => BusProg(nBits_BusProg-15 downto nBits_BusProg-17),
              EntBandC   => Banderas.C,
              SalBandC   => EntBusOR_Banderas(2).C,
              SalBandZ   => EntBusOR_Banderas(2).Z,

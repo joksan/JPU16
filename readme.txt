@@ -68,9 +68,11 @@ Processor features:
   - Separate input/output instructions for I/O bus.
   - ALU instructions for addition/subtraction with optional carry/borrow.
   - ALU instructions for AND, OR, NOT and XOR logical operations.
-  - Instructions for shifting registers left/right with ones or zeroes entering.
-  - Instructions for rotating registers left/right, optionally involving the
-    carry flag.
+  - A 2-stage barrel shifter unit provides instructions for shifting and
+    rotating registers left or right by up to 15 positions, with either ones or
+    zeroes entering when shifting.
+  - Instructions for rotating registers left or right one position at a time
+    while involving the carry flag.
 - Instruction timing is 2 clock cycles for every instruction, even jumps and
   calls.
 - Maximum clock speed is about 90MHz to 100MHz on an Spartan 3E FPGA. Higher

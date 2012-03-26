@@ -112,6 +112,15 @@ architecture Simulacion of JPU16_DISASM is
       end if;
    end procedure;
 
+   --Procedimiento que escribe una instruccion con sintaxis de operacion de ALU de 1
+   --argumento
+   procedure Escr_Instr_ALU_1_Arg(Linea: inout LINE; Nombre: in string) is
+   begin
+      WRITE(Linea, Nombre);         --Escribe el nombre de la instruccion
+      WRITE(Linea, ' ');            --Espacio separador
+      Escribir_Arg_RX(Linea);       --Escribe el argumento RX
+   end procedure;
+
    --Procedimiento que escribe una instruccion con sintaxis de operacion de ALU de 2
    --argumentos
    procedure Escr_Instr_ALU_2_Arg(Linea: inout LINE; Nombre: in string) is
@@ -125,13 +134,44 @@ architecture Simulacion of JPU16_DISASM is
       Escribir_Arg_RY_LIT(Linea);   --Escribe el argumento RY/Literal
    end procedure;
 
-   --Procedimiento que escribe una instruccion con sintaxis de operacion de ALU de 1
-   --argumento
-   procedure Escr_Instr_ALU_1_Arg(Linea: inout LINE; Nombre: in string) is
+   --Procedimiento que escribe una instruccion de desplazamieno o rotacion
+   procedure Escr_Instr_ALU_LD(Linea: inout LINE) is
    begin
-      WRITE(Linea, Nombre);         --Escribe el nombre de la instruccion
-      WRITE(Linea, ' ');            --Espacio separador
-      Escribir_Arg_RX(Linea);       --Escribe el argumento RX
+      --Determina el nombre de la instruccion en base a los bits del 9 al 11
+      case opcode(11 downto 9) is
+      when  "000" => WRITE(Linea, "shl0 ");
+      when  "001" => WRITE(Linea, "shl1 ");
+      when  "010" => WRITE(Linea, "rol ");
+      when  "011" => WRITE(Linea, "rolc ");
+      when  "100" => WRITE(Linea, "shr0 ");
+      when  "101" => WRITE(Linea, "shr1 ");
+      when  "110" => WRITE(Linea, "ror ");
+      when  "111" => WRITE(Linea, "rorc ");
+      end case;
+
+      Escribir_Arg_RX(Linea);             --Escribe el argumento RX
+
+      --Determina si la instruccion involucra acarreo (rolc y rorc)
+      if opcode(10 downto 9) /= "11" then
+         --En caso que no sea involucrado, escribe el segundo argumento
+         WRITE(Linea, ", ");                 --Coma separadora
+         if opcode(20) = '0' then
+            --Si el argumento es un literal de 4 bits (determinado segun bit 20 del
+            --opcode), lo escribe
+            WRITE(Linea, conv_integer(opcode(3 downto 0)));
+         else
+            --Si el argumento es un registro, lo escribe
+            WRITE(Linea, 'r');
+            WRITE(Linea, conv_integer(opcode(15 downto 12)));
+         end if;
+      else
+         --En caso de involucrarlo, corrobora que el modo de direccionamiento sea
+         --inmediato y que argumento literal de 4 bits sea "0001", caso contrario imprime
+         --un segundo argumento con signos de interrogacion para llamar la atencion
+         if opcode(20) /= '0' or opcode(3 downto 0) /= "0001" then
+            WRITE(Linea, ", ???");
+         end if;
+      end if;
    end procedure;
 
    --Procedimiento que escribe una instruccion de movimiento de datos hacia la RAM
@@ -246,17 +286,10 @@ begin
          elsif opcode(25 downto 21) = "10101" then Escr_Instr_ALU_2_Arg(Texto, "sub");
          elsif opcode(25 downto 21) = "10110" then Escr_Instr_ALU_2_Arg(Texto, "xor");
          elsif opcode(25 downto 21) = "10111" then Escr_Instr_ALU_2_Arg(Texto, "subb");
-         --Instrucciones de manipulacion de bits
-         elsif opcode(25 downto 20) = "110000" then Escr_Instr_ALU_1_Arg(Texto, "shl0");
-         elsif opcode(25 downto 20) = "110001" then Escr_Instr_ALU_1_Arg(Texto, "shl1");
-         elsif opcode(25 downto 20) = "110010" then Escr_Instr_ALU_1_Arg(Texto, "rol");
-         elsif opcode(25 downto 20) = "110011" then Escr_Instr_ALU_1_Arg(Texto, "rolc");
-         elsif opcode(25 downto 20) = "110100" then Escr_Instr_ALU_1_Arg(Texto, "shr0");
-         elsif opcode(25 downto 20) = "110101" then Escr_Instr_ALU_1_Arg(Texto, "shr1");
-         elsif opcode(25 downto 20) = "110110" then Escr_Instr_ALU_1_Arg(Texto, "ror");
-         elsif opcode(25 downto 20) = "110111" then Escr_Instr_ALU_1_Arg(Texto, "rorc");
+         --Instrucciones de desplazamiento y rotacion de bits
+         elsif opcode(25 downto 21) = "11100" then Escr_Instr_ALU_LD(Texto);
          --Instruccion de movimiento que involucran solo registros
-         elsif opcode(25 downto 21) = "11100" then Escr_Instr_ALU_2_Arg(Texto, "move");
+         elsif opcode(25 downto 21) = "11101" then Escr_Instr_ALU_2_Arg(Texto, "move");
          --Instrucciones para tomar datos desde fuera del procesador
          elsif opcode(25 downto 21) = "11110" then Escr_Instr_move_from_ram(Texto);
          elsif opcode(25 downto 21) = "11111" then Escr_Instr_in(Texto);
