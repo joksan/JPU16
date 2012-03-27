@@ -11,8 +11,8 @@ package JPU16_Pack is
    constant JPU16_DataBits: integer := 16;
 
    --Declaracion de tipos de bus
-   type JPU16_INPUT_BUS is array (integer range <>) of
-      STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   subtype JPU16_INPUT_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   type JPU16_INPUT_BUS_ARRAY is array (integer range <>) of JPU16_INPUT_BUS;
    subtype JPU16_OUTPUT_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
    subtype JPU16_IO_ADDR_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
 
@@ -23,7 +23,7 @@ package JPU16_Pack is
          Reset:   in  STD_LOGIC;
          SysHold: in  STD_LOGIC;
          Int:     in  STD_LOGIC;
-         IO_Din:  in  JPU16_INPUT_BUS (nInputPorts-1 downto 0);
+         IO_Din:  in  JPU16_INPUT_BUS_ARRAY (nInputPorts-1 downto 0);
          IO_Dout: out JPU16_OUTPUT_BUS;
          IO_Addr: out JPU16_IO_ADDR_BUS;
          IO_RD:   out STD_LOGIC;
@@ -49,7 +49,7 @@ entity JPU16 is
          Reset:   in  STD_LOGIC;
          SysHold: in  STD_LOGIC;
          Int:     in  STD_LOGIC;
-         IO_Din:  in  JPU16_INPUT_BUS (nInputPorts-1 downto 0);
+         IO_Din:  in  JPU16_INPUT_BUS_ARRAY (nInputPorts-1 downto 0);
          IO_Dout: out JPU16_OUTPUT_BUS;
          IO_Addr: out JPU16_IO_ADDR_BUS;
          IO_RD:   out STD_LOGIC;
@@ -67,7 +67,6 @@ architecture Funcionamiento of JPU16 is
    -- Declaracion de señales internas --
    -------------------------------------
    signal SyncReset:   STD_LOGIC_VECTOR (2 downto 1);
-   signal SyncSysHold: STD_LOGIC := '0';
    signal CicloInst:   STD_LOGIC;
    signal SolInt:      STD_LOGIC;
 
@@ -95,17 +94,6 @@ architecture Funcionamiento of JPU16 is
    signal RAM_Ren: STD_LOGIC;
    signal RAM_Wen: STD_LOGIC;
 begin
-   -----------------------------------------------
-   -- operaciones de manejo de señales internas --
-   -----------------------------------------------
-   process (SysClk)
-   begin
-      --Las siguientes operaciones se realizan en sincronia con el reloj
-      if rising_edge(SysClk) then
-         SyncSysHold <= SysHold;
-      end if;
-   end process;
-
    --Definicion de entradas de buses de acuerdo a las instrucciones decodificadas
    ------------------------------------------------------------------------------
 
@@ -124,7 +112,7 @@ begin
    --La salida del bus Q es capturada en un registro, para disminuir la carga
    --combinacional de las instrucciones de movimiento entre registros y literales
    RegSal_BusQ <= SalBusOR_BusQ
-                  when rising_edge(SysClk) and CicloInst = '1' and SyncSysHold = '0';
+                  when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
 
    --La entrada 2 del bus R contiene el registro del bus Q (para instrucciones de
    --movimiento entre registros y de literales)
@@ -171,7 +159,7 @@ begin
    port map (SysClk          => SysClk,
              EntReset        => Reset,
              SalSyncReset    => SyncReset,
-             SysHold         => SyncSysHold,
+             SysHold         => SysHold,
              SalCicloInst    => CicloInst,
              EntInt          => Int,
              EntBandI        => Banderas.I,
@@ -183,7 +171,7 @@ begin
    ALU_LBSR: JPU16_ALU_LBSR
    generic map (nBits_ALU => JPU16_DataBits)
    port map (SysClk     => SysClk,
-             SysHold    => SyncSysHold,
+             SysHold    => SysHold,
              CicloInst  => CicloInst,
              OperandoA  => BusP,
              OperandoB  => SalBusOR_BusQ,
@@ -199,7 +187,7 @@ begin
    ALU_LD: JPU16_ALU_LD
    generic map (nBits_ALU => JPU16_DataBits)
    port map (SysClk     => SysClk,
-             SysHold    => SyncSysHold,
+             SysHold    => SysHold,
              CicloInst  => CicloInst,
              OperandoA  => BusP,
              OperandoB  => SalBusOR_BusQ(3 downto 0),
@@ -216,7 +204,7 @@ begin
    generic map (nBits_Regs => JPU16_DataBits)
    port map (SysClk     => SysClk,
              SyncReset2 => SyncReset(2),
-             SysHold    => SyncSysHold,
+             SysHold    => SysHold,
              CicloInst  => CicloInst,
              SolInt     => SolInt,
              InX        => SalBusOR_BusR,
@@ -229,7 +217,7 @@ begin
    REGS_BANDERAS: JPU16_REGS_BANDERAS
    port map (SysClk     => SysClk,
              SyncReset2 => SyncReset(2),
-             SysHold    => SyncSysHold,
+             SysHold    => SysHold,
              CicloInst  => CicloInst,
              SolInt     => SolInt,
              RestSombra => InstVal.IXRET,
@@ -241,7 +229,7 @@ begin
    generic map (nBits_PC => nBits_DirProg)
    port map (SysClk     => SysClk,
              SyncReset1 => SyncReset(1),
-             SysHold    => SyncSysHold,
+             SysHold    => SysHold,
              CicloInst  => CicloInst,
              SolInt     => SolInt,
              EntPC      => SalBusOR_BusQ(nBits_DirProg - 1 downto 0),
@@ -259,7 +247,7 @@ begin
    PROG_MEM: JPU16_PROG_MEM
    generic map (nBits_BusProg => nBits_BusProg)
    port map (SysClk    => SysClk,
-             SysHold   => SyncSysHold,
+             SysHold   => SysHold,
              CicloInst => CicloInst,
              Direccion => PC,
              DatoProg  => BusProg);
@@ -267,7 +255,7 @@ begin
    RAM: JPU16_RAM
    generic map (nBits_BusDatos => JPU16_DataBits)
    port map (SysClk    => SysClk,
-             SysHold   => SyncSysHold,
+             SysHold   => SysHold,
              Ren       => RAM_Ren,
              Wen       => RAM_Wen,
              Direccion => SalBusOR_BusQ(nBits_DirDatos-1 downto 0),
