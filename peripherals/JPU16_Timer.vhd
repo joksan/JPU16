@@ -109,12 +109,23 @@ begin
 	process(SysClk)
 	
 	begin
-		if rising_edge(SysClk) and TMRPR_WE = '1'  then
+		if rising_edge(SysClk) and TMRPR_WE = '1' and IO_WE = '1' then
 			TMRPR <= IO_Dout;
 		end if;
 	end process;
 
-	TMRPR_WE <= '1' when (((IO_Addr and Mascara) = DirTMRPR) and IO_WE = '1') else '0';
+	process (SysClk)
+	begin
+		if rising_edge(SysClk) then
+			if ((IO_Addr and Mascara) = DirTMRPR) then
+				TMRPR_WE <= '1';
+			else
+				TMRPR_WE <= '0';
+			end if;
+		end if;
+	end process;
+	
+	
 	
 -- TMRCTRL definition
 		
@@ -125,7 +136,7 @@ begin
 				TEB <='0';
 				ITE <='0';
 				ITF <= '0';
-			elsif TMRCTRL_WE ='1' then
+			elsif TMRCTRL_WE ='1' and IO_WE ='1' then
 				TMRCTRL <= IO_Dout;
 			else
 				if CTF = '1' then
@@ -136,7 +147,18 @@ begin
 	end process;
 	
 	IntTMR <= TMRCTRL(6) and ITE;
-	TMRCTRL_WE <= '1' when (((IO_Addr and Mascara) = DirTMRCTRL) and IO_WE = '1') else '0';
+
+	process(SysClk)
+	begin
+		if rising_edge(SysClk) then
+			if (IO_Addr and Mascara) = DirTMRCTRL then
+				TMRCTRL_WE <= '1';
+			else
+				TMRCTRL_WE <= '0';
+			end if;			
+		end if;
+	end process;
+	
 
 -- Read
 	IO_Din <= TMRCNT  when TMRCNT_RE = '1' and IO_RD ='1' else 
