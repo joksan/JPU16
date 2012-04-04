@@ -64,6 +64,7 @@ architecture Funcionamiento of JPU16_Timer is
 	signal TMRCNT_RE: 	STD_LOGIC;
 	signal TMRPR_RE: 		STD_LOGIC;
 	signal TMRCTRL_RE: 	STD_LOGIC;
+	signal IO_Addr_En: 	STD_LOGIC := '0';
 	
 begin
 -- Timer counter definition
@@ -127,15 +128,15 @@ begin
 	TMRCTRL_WE <= '1' when (((IO_Addr and Mascara) = DirTMRCTRL) and IO_WE = '1') else '0';
 
 -- Read
-	IO_Din <= TMRCNT  when TMRCNT_RE = '1' else 
-				 TMRCTRL when TMRCTRL_RE = '1' else
-				 TMRPR   when TMRPR_RE = '1' else (others => '0');
+	IO_Din <= TMRCNT  when TMRCNT_RE = '1' and IO_RD ='1' else 
+				 TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
+				 TMRPR   when TMRPR_RE = '1' and IO_RD = '1' else (others => '0');
 	
 	
 	
-	TMRCNT_RE  <= '1' when (((IO_Addr and Mascara) = DirTMRCNT) and IO_RD = '1') else '0';
-	TMRPR_RE   <= '1' when (((IO_Addr and Mascara) = DirTMRPR) and IO_RD = '1') else '0';
-	TMRCTRL_RE <= '1' when (((IO_Addr and Mascara) = DirTMRCTRL) and IO_RD = '1') else '0';
+	TMRCNT_RE  <= '1' when ((IO_Addr and Mascara) = DirTMRCNT)  and rising_edge(SysClk) else '0';
+	TMRPR_RE   <= '1' when ((IO_Addr and Mascara) = DirTMRPR)  and rising_edge(SysClk) else '0';
+	TMRCTRL_RE <= '1' when ((IO_Addr and Mascara) = DirTMRCTRL)  and rising_edge(SysClk) else '0';
 				 
 -- Prescaler definition
 
