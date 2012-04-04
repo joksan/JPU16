@@ -73,7 +73,7 @@ begin
 		if rising_edge(SysClk)  then
 			if Reset ='1' then
 				TMRCNT <= (others =>'0');
-			elsif TMRCNT_WE = '1' then
+			elsif TMRCNT_WE = '1' and IO_WE = '1' then
 				TMRCNT <= IO_Dout ;
 
 			else
@@ -91,7 +91,18 @@ begin
 	
 	
 	CTF <= '1' when TMRCNT = TMRPR else '0';
-	TMRCNT_WE <= '1' when (((IO_Addr and Mascara) = DirTMRCNT) and IO_WE = '1') else '0';
+	
+	process (SysClk)
+	begin
+		if rising_edge(SysClk) then
+			if ((IO_Addr and Mascara) = DirTMRCNT) then
+				TMRCNT_WE <= '1';
+			else
+				TMRCNT_WE <= '0';
+			end if;
+		end if;
+	end process;
+	
 
 -- TMRPR process
 	
