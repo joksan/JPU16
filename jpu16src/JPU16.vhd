@@ -137,10 +137,36 @@ begin
    IO_Addr <= SalBusOR_BusQ;
 
    --Señales de control del bus de I/O:
-   IO_RD <= '1' when InstVal.IO_IN = '1' and CicloInst = '0' and SyncReset(2) = '0' and
-            SolInt = '0' else '0';
-   IO_WR <= '1' when InstVal.IO_OUT = '1' and CicloInst = '0' and SyncReset(2) = '0' and
-            SolInt = '0' else '0';
+   process (SysClk)
+   begin
+      if rising_edge(SysClk) then
+         if SyncReset(1) = '1' then
+            --En caso de reinicio del sistema la señal IO_RD se establece a 0
+            IO_RD <= '0';
+         elsif SysHold = '0' then
+            if CicloInst = '1' and InstVal.IO_IN = '1' and SolInt = '0' then
+               --Si se efectua una instruccion de lectura del bus de I/O, se activa la
+               --linea IO_RD al final del ciclo 1 (siempre que no haya interrupcion)
+               IO_RD <= '1';
+            else
+               --Si el ciclo no es correcto, no se descodifica la instruccion adecuada u
+               --ocurre una interrupcion, la linea se establece a 0
+               IO_RD <= '0';
+            end if;
+         end if;
+
+         --Se procede de manera similar para la linea IO_WR
+         if SyncReset(1) = '1' then
+            IO_WR <= '0';
+         elsif SysHold = '0' then
+            if CicloInst = '1' and InstVal.IO_OUT = '1' and SolInt = '0' then
+               IO_WR <= '1';
+            else
+               IO_WR <= '0';
+            end if;
+         end if;
+      end if;
+   end process;
 
    --Señales de control de la memoria RAM:
    RAM_Ren <= '1' when InstVal.MoveRamRd = '1' and CicloInst = '1' and
