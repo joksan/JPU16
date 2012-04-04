@@ -132,11 +132,43 @@ begin
 				 TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
 				 TMRPR   when TMRPR_RE = '1' and IO_RD = '1' else (others => '0');
 	
+	process (clk)
 	
+	begin
+		if rising_edge(SysClk) then
+			if ((IO_Addr and Mascara) = DirTMRCNT) then
+				TMRCNT_RE <= '1';
+			else
+				TMRCNT_RE <= '0';
+			end if;
+		end if;
+	end process;
 	
-	TMRCNT_RE  <= '1' when ((IO_Addr and Mascara) = DirTMRCNT)  and rising_edge(SysClk) else '0';
-	TMRPR_RE   <= '1' when ((IO_Addr and Mascara) = DirTMRPR)  and rising_edge(SysClk) else '0';
-	TMRCTRL_RE <= '1' when ((IO_Addr and Mascara) = DirTMRCTRL)  and rising_edge(SysClk) else '0';
+	process (clk)
+	
+	begin
+		if rising_edge(SysClk) then
+			if ((IO_Addr and Mascara) = DirTMRPR) then
+				TMRPR_RE <= '1';
+			else
+				TMRPR_RE <= '0';
+			end if;
+		end if;
+	end process;
+	
+	process (clk)
+	
+	begin
+		if rising_edge(SysClk) then
+			if ((IO_Addr and Mascara) = DirTMRCTRL) then
+				TMRCTRL_RE <= '1';
+			else
+				TMRCTRL_RE <= '0';
+			end if;
+		end if;
+	end process;	
+	
+
 				 
 -- Prescaler definition
 
