@@ -132,7 +132,7 @@ begin
 				 TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
 				 TMRPR   when TMRPR_RE = '1' and IO_RD = '1' else (others => '0');
 	
-	process (clk)
+	process (sysclk)
 	
 	begin
 		if rising_edge(SysClk) then
@@ -144,7 +144,7 @@ begin
 		end if;
 	end process;
 	
-	process (clk)
+	process (sysclk)
 	
 	begin
 		if rising_edge(SysClk) then
@@ -156,7 +156,7 @@ begin
 		end if;
 	end process;
 	
-	process (clk)
+	process (sysclk)
 	
 	begin
 		if rising_edge(SysClk) then
