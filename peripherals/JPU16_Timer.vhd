@@ -2,16 +2,16 @@
 -- --------------------------------------------------------------------------
 --Author: Jonathan Castro
 --
--- This peripheral is a 16-bit upward timer, the main application is timming JPU16 processor,
--- the module is able to prescale the principal system clock, to delay the period count. this prescaler is also a counter unit but 16-bit long.
+-- This peripheral is a 16-bit upward timer, its main application is to provide interrupt to JPU16 processor,
+-- the module is able to divide the principal system clock, to delay the period count. this prescaler is a 15-bit counter unit.
 -- -------------------------------------------------------------------------
--- The associated register for control, counting, and prescaling the Timer are:
+-- The associated registers for control, counting, and prescaling the Timer are:
 --
 -- Timer Count Register (TMRCNT):
 -- It is a Readable and Writeable register that has the main count,
 --
 -- Timer Control Register (TMRCTRL):
--- This register has the control signal like: Timer_On, Prescaler Value, Timer Interrupt Flag and Enable.
+-- This register has the control signals like: Timer_On, Prescaler Value, Timer Interrupt Flag and Enable.
 -- To calculate the prescale value, use the four LSB's of TMRCTRL.
 -- Timer Unit is Turned On when the TMRCTRL(4) is set, otherwise is Off.
 -- Timer Interrupt is Enable when TMRCTRL(5) is set, and TMRCTRL(6) is the Timer Interrupt Flag.
