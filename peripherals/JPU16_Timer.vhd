@@ -1,3 +1,26 @@
+-- Timer Module for JPU16
+-- --------------------------------------------------------------------------
+--Author: Jonathan Castro
+--
+-- This peripheral is a 16-bit timer, the main application is timming JPU16 processor,
+-- the module is able to prescale the principal system clock, to delay the period countup. this prescaler is also a counter unit of 16-bit.
+-- -------------------------------------------------------------------------
+-- The associated register for control, counting, and prescaling the Timer are:
+--
+-- Timer Count Register (TMRCNT):
+-- It is a Readable and Writeable register that has the main countup,
+--
+-- Timer Control Register (TMRCTRL):
+-- This register has the control signal like: Timer_On, Prescaler Value, Timer Interrupt Flag and Enable.
+-- To calculate the prescale value, use the four LSB's of TMRCTRL.
+-- Timer Unit is Turned On when the TMRCTRL(4) is set, otherwise is Off.
+-- Timer Interrupt is Enable when TMRCTRL(5) is set, and TMRCTRL(6) is the Timer Interrupt Flag.
+-- 
+-- Timer Period Register (TMRPR):
+-- This is the number that is compared to TMRCNT and when the match, the timer is reset, Timer Interrupt Flag is set.
+-- Timer Interrupt Flag is clear by software.
+
+-- Timer Entity 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
@@ -33,16 +56,16 @@ architecture Funcionamiento of JPU16_Timer is
 -- "Timer Control Register"
 	signal TMRCTRL: STD_LOGIC_VECTOR(BusAncho-1 downto 0) := (others => '0');
 
---	"Interrupt Timer Flag" 
+-- "Interrupt Timer Flag" 
 	alias ITF: STD_LOGIC is TMRCTRL(6);
 	
---	"Interrupt Timer Enable 
+-- "Interrupt Timer Enable 
 	alias ITE: STD_LOGIC is TMRCTRL(5);
 	
 -- "Timer Enable Bit" 
 	alias TEB: STD_LOGIC is TMRCTRL(4);
 	
---	"Prescaler Table Input"
+-- "Prescaler Table Input"
 	alias PTI: STD_LOGIC_VECTOR(3 downto 0) is TMRCTRL(3	downto 0);
 	
 -- "Clock Enable"
@@ -57,7 +80,7 @@ architecture Funcionamiento of JPU16_Timer is
 -- "Prescaler Count Register"
 	signal PCR: STD_LOGIC_VECTOR( BusAncho-2 downto 0) := (others =>'0');
 
--- Write Enable of Principal Registers.
+-- "Write Enable of Principal Registers".
 	signal TMRCNT_WE: 	STD_LOGIC;
 	signal TMRPR_WE: 		STD_LOGIC;
 	signal TMRCTRL_WE: 	STD_LOGIC;
@@ -67,21 +90,25 @@ architecture Funcionamiento of JPU16_Timer is
 	signal IO_Addr_En: 	STD_LOGIC := '0';
 	
 begin
--- Timer counter definition
+--------- Timer counter definition ------------------
+-- Count Timer Flag is set when the timer counts to the period value.
+	CTF <= '1' when TMRCNT = TMRPR else '0';
+	
+-- Process for TMRCNT 
 	process (SysClk)
 	begin
-		if rising_edge(SysClk)  then
-			if Reset ='1' then
-				TMRCNT <= (others =>'0');
-			elsif TMRCNT_WE = '1' and IO_WE = '1' then
-				TMRCNT <= IO_Dout ;
+		if rising_edge(SysClk)  then				-- Souce Clock
+			if Reset ='1' then				-- Reset Signal clear the register
+				TMRCNT <= (others =>'0');		
+			elsif TMRCNT_WE = '1' and IO_WE = '1' then	-- This is executed when CPU requires read the Count Value
+				TMRCNT <= IO_Dout ;			
 
 			else
-				if CEB = '1' and TEB = '1' then
+				if CEB = '1' and TEB = '1' then		-- Timer count is reset when it has counted to period value
 					if CTF = '1' then
-						TMRCNT <= (others => '0');
+						TMRCNT <= (others => '0'); 
 					else
-						TMRCNT <= TMRCNT + 1;
+						TMRCNT <= TMRCNT + 1;  -- Normal countup activity is executed
 					end if;
 				end if;
 			end if;		
@@ -90,8 +117,7 @@ begin
 	end process;
 	
 	
-	CTF <= '1' when TMRCNT = TMRPR else '0';
-	
+-- Write Enable for Timer Count Register
 	process (SysClk)
 	begin
 		if rising_edge(SysClk) then
@@ -104,8 +130,8 @@ begin
 	end process;
 	
 
--- TMRPR process
-	
+-- Timer Period Register  
+-- This process writes to TMRPR the value of the period count value.
 	process(SysClk)
 	
 	begin
@@ -114,6 +140,7 @@ begin
 		end if;
 	end process;
 
+-- Write Enable for Timer Period Register
 	process (SysClk)
 	begin
 		if rising_edge(SysClk) then
@@ -127,8 +154,11 @@ begin
 	
 	
 	
--- TMRCTRL definition
-		
+-- Description for Timer Control Register
+-- Meanwhile Reset signal is set, the timer unit is turned off, and the interrupt flag and enable bits are cleared.
+-- If the CPU requires to write a new configuration of the Timer unit, through Timer Control Write Enable.
+-- and the Interrupt Timer Flag is set when Count Timer Flag is set too.
+
 	process(SysClk)
 	begin
 		if rising_edge(SysClk) then 
@@ -145,9 +175,11 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
+-- Interrupt Signal of the Unit is active when Interrupt Timer Flag and Enable are set.	
 	IntTMR <= TMRCTRL(6) and ITE;
 
+-- Write Enable for Timer Control 
 	process(SysClk)
 	begin
 		if rising_edge(SysClk) then
@@ -159,14 +191,18 @@ begin
 		end if;
 	end process;
 	
+--------------------------------------------------------------------------------------------
+------- Read signals and process for the Timer Registers -----------------------------------
+--------------------------------------------------------------------------------------------
+-- IO_Din is the Bus that connect the ouput data, to JPU16 input port
+-- if the timer unit is not required for reading process, IO_Din signal gives a clear data for the OR Bus implemented in JPU16.
+	IO_Din <= TMRCNT  when TMRCNT_RE  = '1' and IO_RD = '1' else    
+		  TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
+		  TMRPR   when TMRPR_RE   = '1' and IO_RD = '1' else (others => '0');
 
--- Read
-	IO_Din <= TMRCNT  when TMRCNT_RE = '1' and IO_RD ='1' else 
-				 TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
-				 TMRPR   when TMRPR_RE = '1' and IO_RD = '1' else (others => '0');
-	
+
+--  Read Enable Process for Timer Count Register	
 	process (sysclk)
-	
 	begin
 		if rising_edge(SysClk) then
 			if ((IO_Addr and Mascara) = DirTMRCNT) then
@@ -176,7 +212,8 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
+--  Read Enable Process for Timer Control Register
 	process (sysclk)
 	
 	begin
@@ -188,7 +225,8 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
+--  Read Enable Process for Timer Period Register
 	process (sysclk)
 	
 	begin
@@ -205,6 +243,9 @@ begin
 				 
 -- Prescaler definition
 
+-- The prescaler unit is also a counter unit, but, it is used to divides the frequency of the source clock
+-- When Prescaler count is the same as prescaler value (2**(TMRCTRL<3:0>)), writting to Timer Count Register, Reset signal is active, or Timer Enable bit, when all those events occurred the prescaler count is clear, otherwise prescaler woks normally.
+
 	process (SysClk)
 	begin
 					
@@ -216,29 +257,30 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
+-- Count Enable Bit is the signal that make able to the main Counter to increment its value.
 	CEB <= '1' when PCR = PTR else '0';
 	
 ---------------------------------------------------
 -- Prescaler Table 
 --------------------------------------------------- 	
 
-	PTR <= "000000000000000" when PTI = 0 else
-			 "000000000000001" when PTI = 1 else
-			 "000000000000011" when PTI = 2 else
-			 "000000000000111" when PTI = 3 else
-			 "000000000001111" when PTI = 4 else
-			 "000000000011111" when PTI = 5 else
-			 "000000000111111" when PTI = 6 else
-			 "000000001111111" when PTI = 7 else
-			 "000000011111111" when PTI = 8 else
-			 "000000111111111" when PTI = 9 else
-			 "000001111111111" when PTI = 10 else
-			 "000011111111111" when PTI = 11 else
-			 "000111111111111" when PTI = 12 else
-			 "001111111111111" when PTI = 13 else
-			 "011111111111111" when PTI = 14 else
-			 "111111111111111" when PTI = 15;
+	PTR <= 	"000000000000000" when PTI = 0 else
+		"000000000000001" when PTI = 1 else
+		"000000000000011" when PTI = 2 else
+		"000000000000111" when PTI = 3 else
+		"000000000001111" when PTI = 4 else
+		"000000000011111" when PTI = 5 else
+		"000000000111111" when PTI = 6 else
+		"000000001111111" when PTI = 7 else
+		"000000011111111" when PTI = 8 else
+		"000000111111111" when PTI = 9 else
+		"000001111111111" when PTI = 10 else
+		"000011111111111" when PTI = 11 else
+		"000111111111111" when PTI = 12 else
+		"001111111111111" when PTI = 13 else
+		"011111111111111" when PTI = 14 else
+		"111111111111111" when PTI = 15;
 --------------------------------------------------
 
 end Funcionamiento;
