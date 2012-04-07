@@ -277,7 +277,7 @@ begin
          elsif opcode(25 downto 22) = "0110" then  WRITE(Texto, "return");
          elsif opcode(25 downto 21) = "01110" then  WRITE(Texto, "idret");
          elsif opcode(25 downto 21) = "01111" then  WRITE(Texto, "ieret");
-         --Instrucciones de la ALU
+         --Instrucciones de Logica binaria y suma/resta (ALU)
          elsif opcode(25 downto 21) = "10000" then Escr_Instr_ALU_1_Arg(Texto, "not");
          elsif opcode(25 downto 21) = "10001" then Escr_Instr_ALU_2_Arg(Texto, "add");
          elsif opcode(25 downto 21) = "10010" then Escr_Instr_ALU_2_Arg(Texto, "or");
@@ -286,7 +286,10 @@ begin
          elsif opcode(25 downto 21) = "10101" then Escr_Instr_ALU_2_Arg(Texto, "sub");
          elsif opcode(25 downto 21) = "10110" then Escr_Instr_ALU_2_Arg(Texto, "xor");
          elsif opcode(25 downto 21) = "10111" then Escr_Instr_ALU_2_Arg(Texto, "subb");
-         --Instrucciones de desplazamiento y rotacion de bits
+         --Instrucciones de multiplicacion (ALU)
+         elsif opcode(25 downto 21) = "11000" then Escr_Instr_ALU_2_Arg(Texto, "mul");
+         elsif opcode(25 downto 21) = "11001" then Escr_Instr_ALU_2_Arg(Texto, "smul");
+         --Instrucciones de desplazamiento y rotacion de bits (ALU)
          elsif opcode(25 downto 21) = "11100" then Escr_Instr_ALU_LD(Texto);
          --Instruccion de movimiento que involucran solo registros
          elsif opcode(25 downto 21) = "11101" then Escr_Instr_ALU_2_Arg(Texto, "move");

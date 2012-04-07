@@ -1,3 +1,36 @@
+--------------------------------------------------------
+-- Paquete con el componente principal del procesador --
+--------------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+
+package JPU16_PACK is
+   --Cantidad de bits de datos que maneja el procesador
+   constant JPU16_DataBits: integer := 16;
+
+   --Declaracion de tipos de bus
+   subtype JPU16_INPUT_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   type JPU16_INPUT_BUS_ARRAY is array (integer range <>) of JPU16_INPUT_BUS;
+   subtype JPU16_OUTPUT_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   subtype JPU16_IO_ADDR_BUS is STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+
+   --Declaracion del componente principal del procesador
+   component JPU16
+   generic (nInputPorts: integer := 1);
+   port (SysClk:  in  STD_LOGIC;
+         Reset:   in  STD_LOGIC;
+         SysHold: in  STD_LOGIC;
+         Int:     in  STD_LOGIC;
+         IO_Din:  in  JPU16_INPUT_BUS_ARRAY (nInputPorts-1 downto 0);
+         IO_Dout: out JPU16_OUTPUT_BUS;
+         IO_Addr: out JPU16_IO_ADDR_BUS;
+         IO_RD:   out STD_LOGIC;
+         IO_WR:   out STD_LOGIC);
+   end component;
+end JPU16_PACK;
+
 ----------------------------------------------------------------------
 -- Paquete con las constantes y tipos usados a lo largo del sistema --
 ----------------------------------------------------------------------
@@ -5,13 +38,15 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use work.JPU16_PACK.ALL;
 use work.JPU16_MEM_SIZE_DEFS.ALL;
 
 package JPU16_DEFS is
    -------------------------------------
    -- Declaracion de tipos y subtipos --
    -------------------------------------
-   --Definicion del grupo de registros/buses asociados a las banderas
+   --Definicion del grupo completo de banderas (usado en definiciones tanto de registros
+   --como de buses)
    type GRUPO_BANDERAS is record
       C: STD_LOGIC;
       Z: STD_LOGIC;
@@ -20,37 +55,56 @@ package JPU16_DEFS is
       I: STD_LOGIC;
    end record;
 
-   --Grupo de registros/buses asociados a las banderas guardadas durante las
-   --interrupciones
-   type BANDERAS_SOMBRA is record
+   --Grupo de banderas guardadas durante las interrupciones
+   type GRUPO_BANDERAS_SOMBRA is record
       C: STD_LOGIC;
       Z: STD_LOGIC;
       N: STD_LOGIC;
       V: STD_LOGIC;
    end record;
 
+   --Grupo de banderas usadas por la parte de logica binaria/suma/resta de la ALU
+   type GRUPO_BANDERAS_ALU_LBSR is record
+      C: STD_LOGIC;
+      Z: STD_LOGIC;
+      N: STD_LOGIC;
+      V: STD_LOGIC;
+   end record;
+
+   --Grupo de banderas usadas por la parte de multiplicacion de la ALU
+   type GRUPO_BANDERAS_ALU_M is record
+      C: STD_LOGIC;
+      Z: STD_LOGIC;
+      N: STD_LOGIC;
+   end record;
+
+   --Grupo de banderas usadas por la parte de logica de desplazamiento de la ALU
+   type GRUPO_BANDERAS_ALU_LD is record
+      C: STD_LOGIC;
+      Z: STD_LOGIC;
+      N: STD_LOGIC;
+   end record;
+
    --Grupo de señales de habilitacion generadas por la unidad de control cuando
    --descodifica las instrucciones correspondientes
    type INSTRUCCIONES_VALIDAS is record
-      PC:          STD_LOGIC; --JMPX, CALLX, RETURN, IDRET, IERET
-      IXRET:       STD_LOGIC; --IDRET, IERET (para restaurar banderas sombra solamente)
-      ALU_LBSR_NR: STD_LOGIC; --TEST, CMP
-      ALU_LBSR:    STD_LOGIC; --NOT, OR, AND, XOR, ADDX, SUBX
-      ALU_LD:      STD_LOGIC; --SHLX, SHRX, ROLX, RORX
-      Banderas:    STD_LOGIC; --CLRX, SETX
-      MoveRegInm:  STD_LOGIC; --MOVE Registro, Inmediato
-      MoveRamRd:   STD_LOGIC; --MOVE Registro, [Memoria]
-      MoveRamWr:   STD_LOGIC; --MOVE [Memoria], Registro
-      IO_IN:       STD_LOGIC; --IN
-      IO_OUT:      STD_LOGIC; --OUT
+      PC:         STD_LOGIC;  --JMPX, CALLX, RETURN, IDRET, IERET
+      IXRET:      STD_LOGIC;  --IDRET, IERET (para restaurar banderas sombra solamente)
+      ALU_LBSR_D: STD_LOGIC;  --NOT, OR, AND, XOR, ADDX, SUBX
+      ALU_LBSR_F: STD_LOGIC;  --TEST, CMP, NOT, OR, AND, XOR, ADDX, SUBX
+      ALU_M:      STD_LOGIC;  --MUL, SMUL
+      ALU_LD:     STD_LOGIC;  --SHLX, SHRX, ROLX, RORX
+      Banderas:   STD_LOGIC;  --CLRX, SETX
+      MoveRegInm: STD_LOGIC;  --MOVE Registro, Registro/Inmediato
+      MoveRamRd:  STD_LOGIC;  --MOVE Registro, [Memoria]
+      MoveRamWr:  STD_LOGIC;  --MOVE [Memoria], Registro
+      IO_IN:      STD_LOGIC;  --IN
+      IO_OUT:     STD_LOGIC;  --OUT
    end record;
 
-   --------------------------------
-   -- Declaracion de componentes --
-   --------------------------------
-
-   -- Componentes de logica superior
-   ---------------------------------
+   --------------------------------------------------------
+   -- Declaracion de componentes internos del procesador --
+   --------------------------------------------------------
    component JPU16_CU
    generic (nBits_BusProg: integer := 10);
    port (SysClk:          in  STD_LOGIC;
@@ -67,34 +121,43 @@ package JPU16_DEFS is
    end component;
 
    component JPU16_ALU_LBSR
-   generic (nBits_ALU: integer := 16);
-   port (SysClk: in STD_LOGIC;
-         SysHold: in STD_LOGIC;
-         CicloInst: in STD_LOGIC;
-         OperandoA: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         OperandoB: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         Resultado: out STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         CodigoOper: in STD_LOGIC_VECTOR (2 downto 0);
-         EntBandC: in STD_LOGIC;
-         SalBandC: out STD_LOGIC;
-         SalBandZ: out STD_LOGIC;
-         SalBandN: out STD_LOGIC;
-         SalBandV: out STD_LOGIC);
+   port (SysClk:     in  STD_LOGIC;
+         SysHold:    in  STD_LOGIC;
+         CicloInst:  in  STD_LOGIC;
+         DataEnable: in  STD_LOGIC;
+         FlagEnable: in  STD_LOGIC;
+         OperandoA:  in  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         OperandoB:  in  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         Resultado:  out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         CodigoOper: in  STD_LOGIC_VECTOR (2 downto 0);
+         EntBandC:   in  STD_LOGIC;
+         SalBand:    out GRUPO_BANDERAS_ALU_LBSR);
+   end component;
+
+   component JPU16_ALU_M is
+   port (SysClk:     in STD_LOGIC;
+         SysHold:    in STD_LOGIC;
+         CicloInst:  in STD_LOGIC;
+         UnitEnable: in STD_LOGIC;
+         OperandoA:  in STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         OperandoB:  in STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         ResultadoL: out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         ResultadoH: out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         CodigoOper: in STD_LOGIC;
+         SalBand:    out GRUPO_BANDERAS_ALU_M);
    end component;
 
    component JPU16_ALU_LD
-   generic (nBits_ALU: integer := 16);
-   port (SysClk: in STD_LOGIC;
-         SysHold: in STD_LOGIC;
-         CicloInst: in STD_LOGIC;
-         OperandoA: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         OperandoB: in STD_LOGIC_VECTOR (3 downto 0);
-         Resultado: out STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         CodigoOper: in STD_LOGIC_VECTOR (2 downto 0);
-         EntBandC: in STD_LOGIC;
-         SalBandC: out STD_LOGIC;
-         SalBandZ: out STD_LOGIC;
-         SalBandN: out STD_LOGIC);
+   port (SysClk:     in  STD_LOGIC;
+         SysHold:    in  STD_LOGIC;
+         CicloInst:  in  STD_LOGIC;
+         UnitEnable: in STD_LOGIC;
+         OperandoA:  in  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         OperandoB:  in  STD_LOGIC_VECTOR (3 downto 0);
+         Resultado:  out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         CodigoOper: in  STD_LOGIC_VECTOR (2 downto 0);
+         EntBandC:   in  STD_LOGIC;
+         SalBand:    out GRUPO_BANDERAS_ALU_LD);
    end component;
 
    component JPU16_REGS_RXX
@@ -118,7 +181,7 @@ package JPU16_DEFS is
          SyncReset2: in  STD_LOGIC;
          SysHold:    in  STD_LOGIC;
          CicloInst:  in  STD_LOGIC;
-         SolInt:      in  STD_LOGIC;
+         SolInt:     in  STD_LOGIC;
          RestSombra: in  STD_LOGIC;
          Wen:        in  GRUPO_BANDERAS;
          EntBand:    in  GRUPO_BANDERAS;
@@ -133,7 +196,8 @@ package JPU16_DEFS is
          SysHold:    in  STD_LOGIC;
          CicloInst:  in  STD_LOGIC;
          SolInt:     in  STD_LOGIC;
-         EntPC:      in  STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
+         EntRelPC:   in  STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
+         EntAbsPC:   in  STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
          SalPC:      out STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
          InstValida: in  STD_LOGIC;
          CodigoOper: in  STD_LOGIC_VECTOR (2 downto 0);
@@ -164,41 +228,6 @@ package JPU16_DEFS is
          Direccion: in  STD_LOGIC_VECTOR (nBits_DirDatos-1 downto 0);
          DatoEnt:   in  STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0);
          DatoSal:   out STD_LOGIC_VECTOR (nBits_BusDatos-1 downto 0));
-   end component;
-
-   -- Componentes de buses
-   -----------------------
-   component JPU16_BUS_OR_BANDERAS
-   port (EntBus_INSTR:    in  GRUPO_BANDERAS;
-         EntBus_ALU_LBSR: in  GRUPO_BANDERAS;
-         EntBus_ALU_LD:   in  GRUPO_BANDERAS;
-         SelBus_INSTR:    in  STD_LOGIC;
-         SelBus_ALU_LBSR: in  STD_LOGIC;
-         SelBus_ALU_LD:   in  STD_LOGIC;
-         SalBus:          out GRUPO_BANDERAS);
-   end component;
-
-   component JPU16_BUS_OR_Q
-   generic (nBits_Bus: integer := 16);
-   port (EntBus_INSTR:    in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         EntBus_REGS_RXX: in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         SelBus_ModoDir:  in  STD_LOGIC;
-         SalBus:          out STD_LOGIC_VECTOR (nBits_Bus-1 downto 0));
-   end component;
-
-   component JPU16_BUS_OR_R
-   generic (nBits_Bus: integer := 16);
-   port (EntBus_ALU_LBSR: in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         EntBus_ALU_LD:   in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         EntBus_Q:        in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         EntBus_RAM:      in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         EntBus_IO:       in  STD_LOGIC_VECTOR (nBits_Bus-1 downto 0);
-         SelBus_ALU_LBSR: in  STD_LOGIC;
-         SelBus_ALU_LD:   in  STD_LOGIC;
-         SelBus_Q:        in  STD_LOGIC;
-         SelBus_RAM:      in  STD_LOGIC;
-         SelBus_IO:       in  STD_LOGIC;
-         SalBus:          out STD_LOGIC_VECTOR (nBits_Bus-1 downto 0));
    end component;
 end JPU16_DEFS;
 

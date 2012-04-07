@@ -91,16 +91,21 @@ begin
       '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-4) = "0111" else '0';
 
    --Decodificacion de las instrucciones relacionadas a la parte de logica binaria y de
-   --suma/resta de la ALU que no guardan resultados en registros sino solo en banderas
-   --(TEST, CMP)
-   SalInstVal.ALU_LBSR_NR <=
-      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-4) = "0010" else '0';
-
-   --Decodificacion de las instrucciones relacionadas a la parte de logica binaria y de
    --suma/resta de la ALU que guardan su resultado de forma normal (NOT, OR, AND, XOR,
    --ADD, ADDC, SUB, SUBB)
-   SalInstVal.ALU_LBSR <=
+   SalInstVal.ALU_LBSR_D <=
       '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-2) = "10" else '0';
+
+   --Decodificacion de las instrucciones relacionadas a la parte de logica binaria y de
+   --suma/resta de la ALU que guardan banderas (incluye las anteriores mas TEST y CMP)
+   SalInstVal.ALU_LBSR_F <=
+      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-2) = "10" or
+               EntBusProg(nBits_BusProg-1 downto nBits_BusProg-4) = "0010" else '0';
+
+   --Decodificacion de las instrucciones relacionadas a la parte de multiplicacion de la
+   --ALU
+   SalInstVal.ALU_M <=
+      '1' when EntBusProg(nBits_BusProg-1 downto nBits_BusProg-4) = "1100" else '0';
 
    --Determinacion de las instrucciones relacionadas a la parte de logica de
    --desplazamiento de la ALU
@@ -136,6 +141,10 @@ begin
       else (C => '1', Z => '1', N => '1', V => '1', I => '0') when
          EntBusProg(nBits_BusProg-1 downto nBits_BusProg-2) = "10"
          and EntBusProg(nBits_BusProg-5) = '1'
+      --Para las instrucciones de multiplicacion (MUL, SMUL) se actualizan las banderas
+      --de acarreo, cero y negativo
+      else (C => '1', Z => '1', N => '1', V => '0', I => '0') when
+         EntBusProg(nBits_BusProg-1 downto nBits_BusProg-4) = "1100"
       --Para las operaciones de desplazamiento, se actualizan acarreo, cero y negativo
       else (C => '1', Z => '1', N => '1', V => '0', I => '0') when
          EntBusProg(nBits_BusProg-1 downto nBits_BusProg-5) = "11100"

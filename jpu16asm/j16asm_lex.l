@@ -94,6 +94,8 @@
 (?i:subb)   return TI_SUBB;
 (?i:test)   return TI_TEST;
 (?i:cmp)    return TI_CMP;
+(?i:mul)    return TI_MUL;
+(?i:smul)   return TI_SMUL;
 (?i:shl0)   return TI_SHL0;
 (?i:shl1)   return TI_SHL1;
 (?i:rol)    return TI_ROL;

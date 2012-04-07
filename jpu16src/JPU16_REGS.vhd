@@ -71,8 +71,8 @@ entity JPU16_REGS_BANDERAS is
 end JPU16_REGS_BANDERAS;
 
 architecture Funcionamiento of JPU16_REGS_BANDERAS is
-   signal Banderas:   GRUPO_BANDERAS  := (others => '0');
-   signal BandSombra: BANDERAS_SOMBRA := (others => '0');
+   signal Banderas:   GRUPO_BANDERAS        := (others => '0');
+   signal BandSombra: GRUPO_BANDERAS_SOMBRA := (others => '0');
 begin
    --Proceso de actualizacion de las banderas aritmeticas
    process (SysClk)
@@ -180,7 +180,8 @@ entity JPU16_REGS_PC is
          SysHold:    in  STD_LOGIC;
          CicloInst:  in  STD_LOGIC;
          SolInt:     in  STD_LOGIC;
-         EntPC:      in  STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
+         EntRelPC:   in  STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
+         EntAbsPC:   in  STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
          SalPC:      out STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
          InstValida: in  STD_LOGIC;
          CodigoOper: in  STD_LOGIC_VECTOR (2 downto 0);
@@ -194,169 +195,174 @@ entity JPU16_REGS_PC is
 end JPU16_REGS_PC;
 
 architecture Funcionamiento of JPU16_REGS_PC is
+   --Definicion del tipo de datos de la pila
    type TIPO_PILA_PC is array (2**nBits_Pila-1 downto 0) of
       STD_LOGIC_VECTOR (nBits_PC-1 downto 0);
 
-   signal PC: STD_LOGIC_VECTOR (nBits_PC-1 downto 0) := (others => '0');
+   --Memoria con la pila de llamadas
    signal PilaPC: TIPO_PILA_PC := (others => (others => '0'));
-   signal PunteroPila: STD_LOGIC_VECTOR (nBits_Pila-1 downto 0) := (others => '0');
 
-   signal BandSel: STD_LOGIC;
+   --Registro de contador de programa con su valor precalculado de incremento y su valor
+   --antiguo
+   signal PC: STD_LOGIC_VECTOR (nBits_PC-1 downto 0) := (others => '0');
+   signal PC_Inc: STD_LOGIC_VECTOR (nBits_PC-1 downto 0) := (others => '0');
+   signal PC_Ant: STD_LOGIC_VECTOR (nBits_PC-1 downto 0) := (others => '0');
+
+   --Registro de puntero de pila con sus valores precalculados de incremento y decremento
+   signal SP: STD_LOGIC_VECTOR (nBits_Pila-1 downto 0) := (others => '0');
+   signal SP_Inc: STD_LOGIC_VECTOR (nBits_Pila-1 downto 0) := (others => '0');
+   signal SP_Dec: STD_LOGIC_VECTOR (nBits_Pila-1 downto 0) := (others => '0');
+
+   --Señal de habilitacion que indica si los saltos/llamadas son validos segun las
+   --condiciones codificadas en las instrucciones
    signal SaltoValido: STD_LOGIC;
-
+   --Registro para la señal anterior, que permite validar las operaciones de escritura a
+   --la pila en el siguiente ciclo (ciclo 0)
+   signal RegSaltoValido: STD_LOGIC := '0';
 begin
-   --De acuerdo a la instruccion actual, se selecciona la bandera que participa en la
-   --evaluacion de un salto condicional (Notese que esta operacion se realiza
-   --independientemente de que la instruccion actual sea de salto condicional o que sea
-   --de cualquier otro tipo)
-   with NumBandera select BandSel <= EntBand_C when "00", EntBand_Z when "01",
-                          EntBand_N when "10", EntBand_V when others;
-
-   --En base a las condiciones consideradas a continuacion, se determina si debe ocurrir
-   --un salto (o cambio) en el contador de programa
-   process (InstValida, CodigoOper(2), CodigoOper(0), ValBand, BandSel)
+   --Proceso para definir combinacionalmente si la condicion de salto/llamada es valida
+   process (CodigoOper(0), NumBandera, ValBand,
+            EntBand_C, EntBand_Z, EntBand_N, EntBand_V)
    begin
-      --Se determina si la instruccion es valida
-      if InstValida = '1' then
-         --Se determina si la instruccion es de salto/llamada o retorno
-         if CodigoOper(2) = '0' then
-            --En caso que la instruccion sea de salto/llamada, se verifica si es
-            --condicional o no
-            if CodigoOper(0) = '0' then
-               --En caso que la instruccion sea de salto/llamada incondicional, se
-               --producira un salto
-               SaltoValido <= '1';
-            else
-               --En caso que sea condicional, se verifica si la condicion se cumple
-               if ValBand = BandSel then
-                  --Si la condicion se cumple, se producira un salto
-                  SaltoValido <= '1';
-               else
-                  --Si no se cumple, el salto no se produce
-                  SaltoValido <= '0';
-               end if;
-            end if;
-         else
-            --En caso que la instruccion sea de retorno, se cambiara el valor del
-            --contador de programa incondicionalmente
-            SaltoValido <= '1';
-         end if;
+      --Primero se determina si el salto/llamada es condicional o incondicional
+      if CodigoOper(0) = '0' then
+         --Todos los saltos incondicionales son automaticamente validados
+         SaltoValido <= '1';
       else
-         --En caso que no se detecte una instruccion valida, no se realiza un cambio al
-         --contador de programa
-         SaltoValido <= '0';
+         --Los saltos condicionales se determinan a partir de la bandera seleccionada en
+         --la instruccion. Si la bandera es igual al valor de entrada (determinado
+         --mediante operacion xnor), se da el salto por por valido.
+         case NumBandera is
+         when "00"   => SaltoValido <= ValBand xnor EntBand_C;
+         when "01"   => SaltoValido <= ValBand xnor EntBand_Z;
+         when "10"   => SaltoValido <= ValBand xnor EntBand_N;
+         when others => SaltoValido <= ValBand xnor EntBand_V;
+         end case;
       end if;
    end process;
+   --Nota: En un Spartan 3E, este proceso genera exactamente 2 niveles de logica
+   --contenidos en tres LUT4, proporcionando un camino eficiente para la habilitacion
 
-   --Se procede a actualizar todas las partes sincronas asociadas al contador de programa
-   --y a la pila de llamadas
+   --El registro de salto valido se actualiza durante el ciclo 1
+   RegSaltoValido <= SaltoValido
+                     when rising_edge(SysClk) and SysHold = '0' and CicloInst = '1';
+
+   --Proceso para determinar todos los registros con valores precalculados
    process (SysClk)
    begin
-      --Todas las operaciones de el contador de programa y la pila se hacen en sincronia
-      --con el reloj
       if rising_edge(SysClk) then
-         --Se determina la siguiente accion a seguir para el contador de programa
+         --Los valores precalculados se determinan en ciclo 0
+         if SysHold = '0' and CicloInst = '0' then
+            PC_Inc <= PC + 1;    --Contador de programa incrementado
+            PC_Ant <= PC;        --Valor antiguo de contador de programa
+            SP_Inc <= SP + 1;    --Puntero de pila incrementado
+            SP_Dec <= SP - 1;    --Puntero de pila decrementado
+         end if;
+      end if;
+   end process;
+
+   --Proceso para determinar el nuevo valor del contador de programa
+   process (SysClk)
+   begin
+      if rising_edge(SysClk) then
          if SyncReset1 = '1' then
-            --Si el CPU es reiniciado, el contador de programa se regresa a 0
+            --En caso de Reinicio general del CPU, el contador de programa se pone a 0
             PC <= (others => '0');
+         elsif SolInt = '1' and CicloInst = '1' and SysHold = '0' then
+            --En caso de Solicitud de interrupcion, el contador de programa carga la ultima
+            --direccion de memoria (con todos los bits en 1) durante el ciclo 1
+            PC <= (others => '1');
          elsif CicloInst = '1' and SysHold = '0' then
-            --En caso que no haya reset, que el ciclo de instruccion este en alto y que
-            --el procesador no este en paro, se determina el siguiente estado del
-            --contador de programa
-            if SolInt = '1' then
-               --Si ocurre una solicitud de interrupcion, se detiene la instruccion
-               --actual (no se ejecuta) y se carga la direccion del vector de
-               --interrupcion en el contador de programa
-               PC <= (others => '1');
+            --Todos los cambios en el contador de programa ocurren en el ciclo 1
+            if InstValida = '0' then
+               --Cuando no hay instruccion que afecte el PC, se carga siempre el valor
+               --preincrementado (avanza a la siguiente instruccion)
+               PC <= PC_Inc;
             else
-               --Si no existe una interrupcion pendiente, se verifica si deberia ocurrir
-               --un cambio en el contador de programa a causa de una instruccion valida y
-               --una posible condicion de salto valida
-               if SaltoValido = '0' then
-                  --Si no se decodifica ninguna instruccion de salto/llamada/retorno
-                  --valida, o si el salto/llamada condicional no cumple su condicion, se
-                  --avanza a la siguiente instruccion
-                  PC <= PC + 1;
-               else
-                  --En caso que debiera producirse un cambio del contador de programa, se
-                  --determina la razon
-                  if CodigoOper(2) = '0' then
-                     --Si se trata de una instruccion de salto o llamada condicional o
-                     --incondicional, se verifica el tipo de salto
-                     if ModoSalto = '0' then
-                        --Para salto relativo, se suma el valor al contador actual
-                        PC <= PC + EntPC;
-                     else
-                        --Para salto indirecto, se carga el valor directamente
-                        PC <= EntPC;
-                     end if;
-                  else
-                     --Si se trata de una instruccion de retorno, se verifica el tipo de
-                     --la misma
-                     if CodigoOper(1) = '0' then
-                        --Para el retorno normal, se recupera el valor al tope de la pila
-                        --de llamadas incrementado en 1 (para ejecutar la siguiente
-                        --instruccion despues de la llamada)
-                        PC <= PilaPC(conv_integer(PunteroPila - 1)) + 1;
-                     else
-                        --Para la instruccion de retorno de interrupcion, se recupera el
-                        --valor al tope de la pila de llamadas directamente, para
-                        --ejecutar la instruccion que fue suspendida
-                        PC <= PilaPC(conv_integer(PunteroPila - 1));
-                     end if;
-                  end if;
-               end if;
-            end if;
-         end if;
-
-         --Se determina la accion a seguir para la pila de llamadas
-         if SyncReset1 = '0' and CicloInst = '1' and SysHold = '0' and
-            ((SaltoValido = '1' and CodigoOper(2) = '0' and CodigoOper(1) = '1') or
-            SolInt = '1') then
-            --La pila de llamadas guardara el contador de programa actual si y solo si se
-            --cumplen las siguientes condiciones:
-            -- * No hay reset
-            -- * El ciclo de instruccion es el adecuado (en alto)
-            -- * No se detiene el sistema por la señal SysHold
-            -- Y uno de estos grupos de condiciones:
-            --       * Se dio una condicion de salto valida que cambio el PC
-            --       * La instruccion actual no es de retorno
-            --       * La instruccion actual es de llamada
-            --    o bien
-            --         * Se genero una interrupcion
-            PilaPC(conv_integer(PunteroPila)) <= PC;   --Guarda el PC
-         end if;
-
-         --Se determina la accion a seguir para el puntero de pila
-         if SyncReset1 = '1' then
-            --Si el CPU es reiniciado, el puntero de pila se regresa a 0
-            PunteroPila <= (others => '0');
-         elsif CicloInst = '1' and SysHold = '0' then
-            --En caso que el ciclo de instruccion este en alto y que el sistema no este
-            --detenido, se verifica si se produjo una interrupcion
-            if SolInt = '1' then
-               --Si se produjo una interrupcion, se adelanta el puntero de pila, pues se
-               --tuvo que guardar el contador de programa
-               PunteroPila <= PunteroPila + 1;
-            elsif SaltoValido = '1' then
-               --Por otra parte, si se trata de instruccion de salto/llamada/retorno
-               --valida (que produce un cambio en el contador de programa), se verifica
-               --si la instruccion fue de salto/llamada o bien de retorno
+               --Si se descodifica una instruccion que afecte el PC, se determina si es
+               --de salto/llamada o bien retorno
                if CodigoOper(2) = '0' then
-                  --En caso de ser de salto/llamada, se verifica que sea de llamada
-                  if CodigoOper(1) = '1' then
-                     --Si la instruccion ejecutada fue de llamada, se adelanta el puntero
-                     --de pila
-                     PunteroPila <= PunteroPila + 1;
+                  --En caso de ser instruccion de salto/llamada, se determina si su
+                  --condicion es valida
+                  if SaltoValido = '0' then
+                     --Si no es valida, se carga el valor preincrementado
+                     PC <= PC_Inc;
+                  else
+                     --Si es valida, se hace el salto segun el modo de direccionamiento
+                     if ModoSalto = '0' then
+                        --Para direccionamiento inmediato, el salto es relativo
+                        PC <= PC + EntRelPC;
+                     else
+                        --Para direccionamiento de registro, el salto es absoluto
+                        PC <= EntAbsPC;
+                     end if;
                   end if;
                else
-                  --Si la instruccion fue de retorno, se retrocede el puntero de pila
-                  PunteroPila <= PunteroPila - 1;
+                  --En caso de ser instruccion de retorno, se restaura el valor de
+                  --contador de programa almacenado en el tope de la pila
+                  PC <= PilaPC(conv_integer(SP));
                end if;
             end if;
          end if;
       end if;
    end process;
+
+   --Proceso para determinar el valor del puntero de pila
+   process (SysClk)
+   begin
+      if rising_edge(SysClk) then
+         if SyncReset1 = '1' then
+            --En caso de reinicio global del sistema, el puntero de pila se pone a 0
+            SP <= (others => '0');
+         elsif CicloInst = '1' and SysHold = '0' then
+            --Las operaciones del puntero de pila ocurren en el ciclo 1
+            if SolInt = '1' then
+               --En caso de solicitud de interrupcion, se carga el valor predecrementado
+               SP <= SP_Dec;
+            elsif InstValida = '1'then
+               --En caso de descodificarse instrucciones validas, se determina si son de
+               --salto/llamada o bien retorno
+               if CodigoOper(2) = '0' then
+                  --Si la instruccion es de salto/llamada, se verifica que sea una llamada
+                  --con condicion valida
+                  if CodigoOper(1) = '1' and SaltoValido = '1' then
+                     --En caso de ser valida, se decrementa el puntero de pila
+                     SP <= SP_Dec;
+                  end if;
+               else
+                  --Si la isntruccion es de retorno, se incrementa el puntero de pila
+                  SP <= SP_Inc;
+               end if;
+            end if;
+         end if;
+      end if;
+   end process;
+
+   --Proceso de control de escritura a la pila de llamadas
+   process (SysClk)
+   begin
+      if rising_edge(SysClk) then
+         if CicloInst = '0' and SysHold = '0' then
+            --Todas las operaciones de escritura a la pila ocurren en el ciclo 0
+            if SolInt = '1' then
+               --En caso de solicitud de interrupcion, se guarda el valor antiguo del
+               --contador de programa en la pila
+               PilaPC(conv_integer(SP)) <= PC_Ant;
+            elsif InstValida = '1' and CodigoOper(2 downto 1) = "01" then
+               --En caso que se descodifique una instruccion de llamada, se verifica que
+               --su condicion sea valida
+               if RegSaltoValido = '1' then
+                  --Si lo es, se guarda la direccion de la siguiente instruccion
+                  PilaPC(conv_integer(SP)) <= PC_Inc;
+               end if;
+            end if;
+         end if;
+      end if;
+   end process;
+   --Nota: Debido a que el proceso anterior modifica la pila en el ciclo 0, el valor
+   --original del contador de programa podria ya no estar presente. Por ello es que se
+   --elige entre el valor antiguo del PC o bien el valor preincrementado del mismo, pues
+   --sus valores son actualizados al final del ciclo 0.
 
    SalPC <= PC;      --Conecta el contador de programa al puerto de salida
 end Funcionamiento;

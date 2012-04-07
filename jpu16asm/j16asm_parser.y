@@ -53,6 +53,7 @@
 %token TI_CALL TI_CALLNC TI_CALLC TI_CALLNZ TI_CALLZ TI_CALLP TI_CALLN TI_CALLNV TI_CALLV
 %token TI_RETURN TI_IDRET TI_IERET
 %token TI_NOT TI_ADD TI_OR TI_ADDC TI_AND TI_SUB TI_XOR TI_SUBB TI_TEST TI_CMP
+%token TI_MUL TI_SMUL
 %token TI_SHL0 TI_SHL1 TI_ROL TI_ROLC TI_SHR0 TI_SHR1 TI_ROR TI_RORC
 
 //Token de elementos del lenguaje
@@ -336,7 +337,17 @@ instr:
     //subb reg, reg
   | TI_SUBB T_REG ',' T_REG     { $$ = (0b101111 << 20) | ($2 << 16) | ($4 << 12); }
 
-  //Noveno bloque: operaciones de desplazamiento de bits
+  //Noveno bloque: operaciones de multiplicacion
+    //mul reg, lit
+  | TI_MUL T_REG ',' exp        { $$ = (0b110000 << 20) | ($2 << 16) | ($4 & 0xFFFF); }
+    //mul reg, reg
+  | TI_MUL T_REG ',' T_REG      { $$ = (0b110001 << 20) | ($2 << 16) | ($4 << 12); }
+    //smul reg, lit
+  | TI_SMUL T_REG ',' exp       { $$ = (0b110010 << 20) | ($2 << 16) | ($4 & 0xFFFF); }
+    //smul reg, reg
+  | TI_SMUL T_REG ',' T_REG      { $$ = (0b110011 << 20) | ($2 << 16) | ($4 << 12); }
+
+  //Decimo bloque: operaciones de desplazamiento de bits
     //shl0 reg, lit
   | TI_SHL0 T_REG ',' exp     { $$ = (0b111000 << 20) | (0x0 << 9) | ($2 << 16) | ($4 & 0x000F); }
     //shl0 reg, reg
@@ -366,7 +377,7 @@ instr:
     //rorc reg
   | TI_RORC T_REG             { $$ = (0b111000 << 20) | (0x7 << 9) | ($2 << 16) | 0x1; }
 
-  //Decimo bloque: Instrucciones de entrada de datos hacia el CPU (desde literal, registro, memoria o I/O)
+  //Decimo primer bloque: Instrucciones de entrada de datos hacia el CPU (desde literal, registro, memoria o I/O)
     //move reg, lit
   | TI_MOVE T_REG ',' exp               { $$ = (0b111010 << 20) | ($2 << 16) | ($4 & 0xFFFF); }
     //move reg, reg

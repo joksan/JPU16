@@ -5,34 +5,42 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use work.JPU16_PACK.ALL;
+use WORK.JPU16_DEFS.ALL;
 
 entity JPU16_ALU_LBSR is
-   generic (nBits_ALU: integer := 16);
-   port (SysClk: in STD_LOGIC;
-         SysHold: in STD_LOGIC;
-         CicloInst: in STD_LOGIC;
-         OperandoA: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         OperandoB: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         Resultado: out STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         CodigoOper: in STD_LOGIC_VECTOR (2 downto 0);
-         EntBandC: in STD_LOGIC;
-         SalBandC: out STD_LOGIC;
-         SalBandZ: out STD_LOGIC;
-         SalBandN: out STD_LOGIC;
-         SalBandV: out STD_LOGIC);
+   port (SysClk:     in  STD_LOGIC;
+         SysHold:    in  STD_LOGIC;
+         CicloInst:  in  STD_LOGIC;
+         DataEnable: in  STD_LOGIC;
+         FlagEnable: in  STD_LOGIC;
+         OperandoA:  in  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         OperandoB:  in  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         Resultado:  out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         CodigoOper: in  STD_LOGIC_VECTOR (2 downto 0);
+         EntBandC:   in  STD_LOGIC;
+         SalBand:    out GRUPO_BANDERAS_ALU_LBSR);
 end JPU16_ALU_LBSR;
 
 architecture Funcionamiento of JPU16_ALU_LBSR is
-   signal SumandoB: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
+   --Señales con resultados pre procesados
+   signal SumandoB: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
    signal BandC_Inicial: STD_LOGIC;
-   signal ResultadoLB: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0) := (others => '0');
-   signal ResultadoSR: STD_LOGIC_VECTOR (nBits_ALU downto 0) := (others => '0');
-   signal RegCodigoOper2: STD_LOGIC := '0';
-   signal RegCodigoOper0: STD_LOGIC := '0';
+
+   --Registros con resultados parciales para la segunda etapa
+   signal ResultadoLB: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0) := (others => '0');
+   signal ResultadoSR: STD_LOGIC_VECTOR (JPU16_DataBits downto 0) := (others => '0');
    signal RegSignoOpA: STD_LOGIC := '0';
    signal RegSignoOpB: STD_LOGIC := '0';
-   signal ResultadoFinal: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
 
+   --Registros con señales de control
+   signal RegCodigoOper2: STD_LOGIC := '0';
+   signal RegCodigoOper0: STD_LOGIC := '0';
+   signal RegDataEn: STD_LOGIC := '0';
+   signal RegFlagEn: STD_LOGIC := '0';
+
+   --Señales con resultados post procesados
+   signal ResultadoFinal: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
 begin
    -----------------------------
    -- Primera etapa de la ALU --
@@ -41,30 +49,24 @@ begin
    --Operaciones logicas NOT, OR, AND y XOR (logica binaria)
    ---------------------------------------------------------
    process (SysClk)
+      --Tabla de verdad para determinar todas las operaciones booleanas de la ALU
+      constant Tabla_LB: STD_LOGIC_VECTOR(0 to 15) := "1100" &    --NOT A
+                                                      "0111" &    --A OR B
+                                                      "0001" &    --A AND B
+                                                      "0110";     --A XOR B
+      --Nota: La composicion de los bits de seleccion de la tabla es la siguiente:
+      --CodigoOper(2), CodigoOper(1), OperandoA, OperandoB
    begin
       --Se realizan las operaciones logicas del procesador en forma sincrona
       if rising_edge(SysClk) then
          if CicloInst = '1' and SysHold = '0' then
-            --La operacion a realizar se determina en base al codigo de operacion
-            case CodigoOper(2 downto 1) is
-            when "00" =>
-               ResultadoLB <= not OperandoA;             --Operacion NOT
-            when "01" =>
-               ResultadoLB <= OperandoA or OperandoB;    --Operacion OR
-            when "10" =>
-               ResultadoLB <= OperandoA and OperandoB;   --Operacion AND
-            when others =>
-               ResultadoLB <= OperandoA xor OperandoB;   --Operacion XOR
-            end case;
+            --La operacion se determina en base a la tabla, la cual es aplicada bit a bit
+            for i in 0 to JPU16_DataBits-1 loop
+               ResultadoLB(i) <= Tabla_LB(conv_integer(CodigoOper(2 downto 1) &
+                                                       OperandoA(i) & OperandoB(i)));
+            end loop;
          end if;
       end if;
-      --Nota:
-      --El proceso se realiza secuencialmente (sincronizado al ciclo de instruccion y
-      --habilitado por SysHold como las demas partes secuenciales del CPU) con proposito
-      --de mermar la carga de logica combinacional hacia la bandera de cero y lograr 
-      --mayor velocidad. El proceso puede hacerse en forma totalmente combinacional y sin
-      --afectar la operacion del procesador eliminando la parte sincrona (condiciones if)
-      --convirtiendo el proceso en uno combinacional
    end process;
 
    -- Operaciones de suma y resta
@@ -92,32 +94,30 @@ begin
    --mismo sumador
    ResultadoSR <= ('0' & OperandoA) + SumandoB + BandC_Inicial
                   when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
-   --Nota:
-   --El proceso se realiza secuencialmente con proposito de mermar la carga de logica
-   --combinacional hacia la bandera de acarreo y lograr mayor velocidad. El proceso puede
-   --hacerse en forma totalmente combinacional sin afectar la operacion eliminando la
-   --parte sincrona (segunda linea) de la sentencia anterior.
 
    --Traslado de las señales de control a la segunda etapa
    -------------------------------------------------------
    --Las señales de control CodigoOper(2) y CodigoOper(0) se usan en la segunda etapa de
    --la ALU para determinar el resultado final. Estas se trasladan a registros para
    --disminuir la carga de combinacional desde la memoria de programa hacia el resto del
-   --procesador (bus R, banderas, etc.). Estas operaciones pueden hacerse tambien en
-   --forma totalmente combinacional al eliminar la parte sincrona.
+   --procesador (bus R, banderas, etc.)
    RegCodigoOper2 <= CodigoOper(2)
                      when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
    RegCodigoOper0 <= CodigoOper(0)
                      when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
 
+   --Los registros de habilitacion de salida indican a la segunda etapa de la ALU que
+   --envie al exterior los resultados de las operaciones en el siguiente ciclo
+   RegDataEn <= CicloInst and DataEnable when rising_edge(SysClk) and SysHold = '0';
+   RegFlagEn <= CicloInst and FlagEnable when rising_edge(SysClk) and SysHold = '0';
+
    --Traslado de los signos de los operandos a la segunda etapa
    ------------------------------------------------------------
    --Los signos de los operandos A y B son trasladados tambien a la segunda etapa de la
-   --ALU en forma secuencial, pues son usados para determinar el sobreflujo. Tambien es
-   --posible hacer esto en forma combinacional.
-   RegSignoOpA <= OperandoA(nBits_ALU-1)
+   --ALU en forma secuencial, pues son usados para determinar el sobreflujo
+   RegSignoOpA <= OperandoA(JPU16_DataBits-1)
                   when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
-   RegSignoOpB <= OperandoB(nBits_ALU-1)
+   RegSignoOpB <= OperandoB(JPU16_DataBits-1)
                   when rising_edge(SysClk) and CicloInst = '1' and SysHold = '0';
 
    -----------------------------
@@ -126,59 +126,173 @@ begin
 
    -- Seleccion del resultado a la salida de la ALU
    ------------------------------------------------
-   --De acuerdo al codigo de operacion, se determina si la operacion es de logica
-   --binaria (NOT, OR, AND y XOR) o de suma/resta (ADD, ADDC, SUB, SUBB)
+   --De acuerdo al registro de habilitacion de salida y el codigo de operacion, se
+   --determina si la salida tendra 0, el resultado de la operacion de logica binaria
+   --(NOT, OR, AND o XOR) o el resultado de la suma/resta (ADD, ADDC, SUB, SUBB)
    ResultadoFinal <=
-      ResultadoLB when RegCodigoOper0 = '0'     --Operaciones de logica binaria
-      else ResultadoSR(nBits_ALU-1 downto 0);   --Operaciones de suma y resta
+      (others => '0') when RegDataEn = '0' else    --Salida deshabilitada
+      ResultadoLB when RegCodigoOper0 = '0'  else  --Operaciones de logica binaria
+      ResultadoSR(JPU16_DataBits-1 downto 0);      --Operaciones de suma y resta
 
    --Conexion del resultado final a la salida de la ALU
    Resultado <= ResultadoFinal;
 
    -- Determinacion del resultado de las banderas
    ----------------------------------------------
-   --El acarreo de salida es igual al MSB del resultado de la suma/resta
-   SalBandC <= ResultadoSR(nBits_ALU);
+   --El acarreo de salida es igual al MSB del resultado de la suma/resta siempre que la
+   --salida este habilitada
+   SalBand.C <= ResultadoSR(JPU16_DataBits) when RegFlagEn = '1' else '0';
 
-   --La bandera de cero se activa siempre que el resultado sea cero
-   SalBandZ <= '1' when ResultadoFinal = 0 else '0';
+   --La bandera de cero se activa siempre que el resultado sea cero y la salida se active
+   SalBand.Z <= '1' when ResultadoFinal = 0 and RegFlagEn = '1' else '0';
 
-   --La bandera de negativo es igual al bit 7 del resultado final
-   SalBandN <= ResultadoFinal(nBits_ALU-1);
+   --La bandera de negativo es igual al MSB del resultado final si se activa la salida
+   SalBand.N <= ResultadoFinal(JPU16_DataBits-1) when RegFlagEn = '1' else '0';
 
    --Determinacion de la bandera de sobreflujo
-   process (RegCodigoOper2, RegSignoOpA, RegSignoOpB, ResultadoSR(nBits_ALU-1))
+   process (RegFlagEn, RegCodigoOper2, RegSignoOpA, RegSignoOpB,
+            ResultadoSR(JPU16_DataBits-1))
    begin
-      if RegCodigoOper2 = '0' then
+      if RegFlagEn = '0' then
+         --Si la salida no esta activada, la bandera generada debe ser 0
+         SalBand.V <= '0';
+      elsif RegCodigoOper2 = '0' then
          --Definicion de sobreflujo para la suma
          if RegSignoOpA /= RegSignoOpB then
             --Si los signos son diferentes, no puede haber sobreflujo
-            SalBandV <= '0';
+            SalBand.V <= '0';
          else
             --Si los signos son iguales pero el resultado es de signo distinto,
             --hay sobreflujo
-            if RegSignoOpA /= ResultadoSR(nBits_ALU-1) then
-               SalBandV <= '1';
+            if RegSignoOpA /= ResultadoSR(JPU16_DataBits-1) then
+               SalBand.V <= '1';
             else
-               SalBandV <= '0';
+               SalBand.V <= '0';
             end if;
          end if;
       else
          --Definicion de sobreflujo para la resta
          if RegSignoOpA = RegSignoOpB then
             --Si los signos son iguales, no puede haber sobreflujo
-            SalBandV <= '0';
+            SalBand.V <= '0';
          else
             --Si los signos son diferentes y el resultado es de signo distinto
             --que el primer operando (minuendo), hay sobreflujo
-            if RegSignoOpA /= ResultadoSR(nBits_ALU-1) then
-               SalBandV <= '1';
+            if RegSignoOpA /= ResultadoSR(JPU16_DataBits-1) then
+               SalBand.V <= '1';
             else
-               SalBandV <= '0';
+               SalBand.V <= '0';
             end if;
          end if;
       end if;
    end process;
+end Funcionamiento;
+
+-----------------------------------------------------
+-- Entidad de la parte de multiplicacion de la ALU --
+-----------------------------------------------------
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use work.JPU16_PACK.ALL;
+use WORK.JPU16_DEFS.ALL;
+
+entity JPU16_ALU_M is
+   port (SysClk:     in STD_LOGIC;
+         SysHold:    in STD_LOGIC;
+         CicloInst:  in STD_LOGIC;
+         UnitEnable: in STD_LOGIC;
+         OperandoA:  in STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         OperandoB:  in STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         ResultadoL: out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         ResultadoH: out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         CodigoOper: in STD_LOGIC;
+         SalBand:    out GRUPO_BANDERAS_ALU_M);
+end JPU16_ALU_M;
+
+architecture Funcionamiento of JPU16_ALU_M is
+   --Registros con resultados parciales para la segunda etapa
+   signal RegOperandoA: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0) := (others => '0');
+   signal RegOperandoB: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0) := (others => '0');
+   signal RegBandZ_A: STD_LOGIC := '0';
+   signal RegBandZ_B: STD_LOGIC := '0';
+
+   --Registros con señales de control
+   signal RegCodigoOper: STD_LOGIC := '0';
+   signal RegOutputEn: STD_LOGIC := '0';
+
+   --Señales con resultados post procesados
+   signal ResultadoCompleto: STD_LOGIC_VECTOR (JPU16_DataBits*2-1 downto 0);
+begin
+   -----------------------------
+   -- Primera etapa de la ALU --
+   -----------------------------
+
+   --Los argumentos de multiplicacion son trasladados a registros para ser procesados en
+   --la segunda etapa
+   RegOperandoA <= OperandoA
+                   when rising_edge(SysClk) and SysHold = '0' and  CicloInst = '1';
+   RegOperandoB <= OperandoB
+                   when rising_edge(SysClk) and SysHold = '0' and  CicloInst = '1';
+
+   --La bandera Z es precalculada en base a los 2 operandos, puesto que si cualquiera de
+   --ellos es cero, la salida sera cero tambien
+   process (SysClk)
+   begin
+      if rising_edge(SysClk) then
+         if SysHold = '0' and CicloInst = '1' then
+            if OperandoA = 0 then
+               RegBandZ_A <= '1';      --El operando A es cero
+            else
+               RegBandZ_A <= '0';
+            end if;
+
+            if OperandoB = 0 then
+               RegBandZ_B <= '1';      --El operando B es cero
+            else
+               RegBandZ_B <= '0';
+            end if;
+         end if;
+      end if;
+   end process;
+
+   --Traslado de las señales de control a la segunda etapa
+   -------------------------------------------------------
+   --El bit del codigo de operacion es trasladado a la segunda etapa para determinar el
+   --tipo de operacion
+   RegCodigoOper <= CodigoOper
+                    when rising_edge(SysClk) and SysHold = '0' and  CicloInst = '1';
+
+   --El registro de habilitacion de salida se activa en el ciclo siguiente si se
+   --descodifica una instruccion valida
+   RegOutputEn <= CicloInst and UnitEnable when rising_edge(SysClk) and SysHold = '0';
+
+   -----------------------------
+   -- Segunda etapa de la ALU --
+   -----------------------------
+
+   --La operacion de multiplicacion se realiza con o sin signo dependiendo del registro
+   --de codigo de operacion
+   ResultadoCompleto <= RegOperandoA * RegOperandoB when RegCodigoOper = '0' else
+                        signed(RegOperandoA) * signed(RegOperandoB);
+
+   --Conexion de la parte baja del resultado final a la salida de la ALU
+   ResultadoL <= ResultadoCompleto(JPU16_DataBits-1 downto 0)
+                 when RegOutputEn = '1' else (others => '0');
+
+   --Conexion de la parte alta del resultado final a la salida de la ALU
+   ResultadoH <= ResultadoCompleto(JPU16_DataBits*2-1 downto JPU16_DataBits);
+
+   --El acarreo es el MSB de la parte baja del resultado si la salida esta habilitada
+   SalBand.C <= ResultadoCompleto(JPU16_DataBits-1) when RegOutputEn = '1' else '0';
+
+   --La bandera de cero se activa no a partir del resultado final, sino a partir de los
+   --ceros precalculados siempre que la salida se active
+   SalBand.Z <= RegBandZ_A or RegBandZ_B when RegOutputEn = '1' else '0';
+
+   --La bandera de negativo es igual al MSB del resultado completo si se activa la salida
+   SalBand.N <= ResultadoCompleto(JPU16_DataBits*2-1) when RegOutputEn = '1' else '0';
 end Funcionamiento;
 
 ---------------------------------------------------------------
@@ -188,311 +302,310 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
+use work.JPU16_PACK.ALL;
+use WORK.JPU16_DEFS.ALL;
 
 entity JPU16_ALU_LD is
-   generic (nBits_ALU: integer := 16);
-   port (SysClk: in STD_LOGIC;
-         SysHold: in STD_LOGIC;
-         CicloInst: in STD_LOGIC;
-         OperandoA: in STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         OperandoB: in STD_LOGIC_VECTOR (3 downto 0);
-         Resultado: out STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-         CodigoOper: in STD_LOGIC_VECTOR (2 downto 0);
-         EntBandC: in STD_LOGIC;
-         SalBandC: out STD_LOGIC;
-         SalBandZ: out STD_LOGIC;
-         SalBandN: out STD_LOGIC);
+   port (SysClk:     in  STD_LOGIC;
+         SysHold:    in  STD_LOGIC;
+         CicloInst:  in  STD_LOGIC;
+         UnitEnable: in STD_LOGIC;
+         OperandoA:  in  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         OperandoB:  in  STD_LOGIC_VECTOR (3 downto 0);
+         Resultado:  out STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+         CodigoOper: in  STD_LOGIC_VECTOR (2 downto 0);
+         EntBandC:   in  STD_LOGIC;
+         SalBand:    out GRUPO_BANDERAS_ALU_LD);
 end JPU16_ALU_LD;
 
 architecture Funcionamiento of JPU16_ALU_LD is
-   signal ValorResultante: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0);
-
-   signal RegRotDes: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0) := (others => '0');
-   signal RegRotC: STD_LOGIC_VECTOR (nBits_ALU-1 downto 0) := (others => '0');
+   --Registros con resultados parciales para la segunda etapa
+   signal RegRotDes: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0) := (others => '0');
+   signal RegOperandoB: STD_LOGIC_VECTOR (1 downto 0) := (others => '0');
+   signal RegRotC: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0) := (others => '0');
    signal RegC: STD_LOGIC_VECTOR (3 downto 0) := (others => '0');
 
-   signal RegOperandoB: STD_LOGIC_VECTOR (1 downto 0) := "00";
-   signal RegCodigoOper: STD_LOGIC_VECTOR (2 downto 0);
+   --Registros con señales de control
+   signal RegCodigoOper: STD_LOGIC_VECTOR (2 downto 0) := (others => '0');
+   signal RegOutputEn: STD_LOGIC := '0';
 
+   --Señales con resultados post procesados
+   signal ResultadoRotDes:  STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+   signal ResultadoFinal: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0);
+
+   --Funcion de evaluacion para la primera etapa del barrel shifter
+   ----------------------------------------------------------------
+   --Esta funcion permite desplazar bits en grupos de 4 durante la primera etapa, para
+   --las instrucciones SHL0, SHL1, ROL, SHR0, SHR1 y ROR
+   function Barrel_S1(Dato: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0); --Dato a operar
+                      nPos: STD_LOGIC_VECTOR (1 downto 0);     --Posiciones a mover
+                      Dir: STD_LOGIC;                          --Direccion de movimiento
+                      Oper: STD_LOGIC;                         --Operacion (Rot./Despl.)
+                      Relleno: STD_LOGIC)                      --Valor de bits entrantes
+      return STD_LOGIC_VECTOR is
+   begin
+      --Primero se determina la clase de operacion (desplazamiento o rotacion)
+      if Oper = '0' then
+         --Para operaciones de desplazamiento, se determina la direccion
+         if Dir = '0' then
+            --Las operaciones de desplazamiento a la izquierda introducen bits de relleno
+            case nPos is
+            when "00"   => return Dato;   --En caso de 0 no se desplaza
+            when "01"   => return Dato(11 downto 0) & ( 3 downto 0 => Relleno);
+            when "10"   => return Dato( 7 downto 0) & ( 7 downto 0 => Relleno);
+            when others => return Dato( 3 downto 0) & (11 downto 0 => Relleno);
+            end case;
+         else
+            --Las operaciones de desplazamiento a la derecha tambien introducen relleno
+            case nPos is
+            when "00"   => return Dato;
+            when "01"   => return ( 3 downto 0 => Relleno) & Dato(15 downto  4);
+            when "10"   => return ( 7 downto 0 => Relleno) & Dato(15 downto  8);
+            when others => return (11 downto 0 => Relleno) & Dato(15 downto 12);
+            end case;
+         end if;
+      else
+         --Las operaciones de rotacion se realizan segun la direccion
+         if Dir = '0' then
+            --Se realizan las rotaciones a la izquierda
+            case nPos is
+            when "00"   => return Dato;   --En caso de cero no se rota
+            when "01"   => return Dato(11 downto 0) & Dato(15 downto 12);
+            when "10"   => return Dato( 7 downto 0) & Dato(15 downto  8);
+            when others => return Dato( 3 downto 0) & Dato(15 downto  4);
+            end case;
+         else
+            --Se realizan las rotaciones a la derecha
+            case nPos is
+            when "00"   => return Dato;
+            when "01"   => return Dato( 3 downto 0) & Dato(15 downto  4);
+            when "10"   => return Dato( 7 downto 0) & Dato(15 downto  8);
+            when others => return Dato(11 downto 0) & Dato(15 downto 12);
+            end case;
+         end if;
+      end if;
+   end function;
+
+   --Funcion de evaluacion para la segunda etapa del barrel shifter
+   ----------------------------------------------------------------
+   --Esta funcion permite desplazar bits hasta 3 posiciones durante la segunda etapa,
+   --para las instrucciones SHL0, SHL1, ROL, SHR0, SHR1 y ROR
+   function Barrel_S2(Dato: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0); --Dato a operar
+                      nPos: STD_LOGIC_VECTOR (1 downto 0);     --Posiciones a mover
+                      Dir: STD_LOGIC;                          --Direccion de movimiento
+                      Oper: STD_LOGIC;                         --Operacion (Rot./Despl.)
+                      Relleno: STD_LOGIC)                      --Valor de bits entrantes
+      return STD_LOGIC_VECTOR is
+   begin
+      if Oper = '0' then
+         if Dir = '0' then
+            --Desplazamientos a la izquierda
+            case nPos is
+            when "00"   => return Dato;   --En caso de 0 no se desplaza
+            when "01"   => return Dato(14 downto 0) & (0 downto 0 => Relleno);
+            when "10"   => return Dato(13 downto 0) & (1 downto 0 => Relleno);
+            when others => return Dato(12 downto 0) & (2 downto 0 => Relleno);
+            end case;
+         else
+            --Desplazamientos a la derecha
+            case nPos is
+            when "00"   => return Dato;
+            when "01"   => return (0 downto 0 => Relleno) & Dato(15 downto 1);
+            when "10"   => return (1 downto 0 => Relleno) & Dato(15 downto 2);
+            when others => return (2 downto 0 => Relleno) & Dato(15 downto 3);
+            end case;
+         end if;
+      else
+         if Dir = '0' then
+            --Rotaciones a la izquierda
+            case nPos is
+            when "00"   => return Dato;   --En caso de cero no se rota
+            when "01"   => return Dato(14 downto 0) & Dato(15 downto 15);
+            when "10"   => return Dato(13 downto 0) & Dato(15 downto 14);
+            when others => return Dato(12 downto 0) & Dato(15 downto 13);
+            end case;
+         else
+            --Rotaciones a la derecha
+            case nPos is
+            when "00"   => return Dato;
+            when "01"   => return Dato(0 downto 0) & Dato(15 downto 1);
+            when "10"   => return Dato(1 downto 0) & Dato(15 downto 2);
+            when others => return Dato(2 downto 0) & Dato(15 downto 3);
+            end case;
+         end if;
+      end if;
+   end function;
+
+   --Funcion de evaluacion de acarreo para la primera etapa
+   --------------------------------------------------------
+   --Esta funcion determina los 4 candidatos posibles del acarreo a ser trasladados a la
+   --segunda etapa mediante un registro de 4 bits. Notese que se da el mismo tratamiento
+   --a la bandera de acarreo en todas las operaciones del barrel shifter.
+   function Carry_S1(Dato: STD_LOGIC_VECTOR (JPU16_DataBits-1 downto 0); --Dato a operar
+                     Cin: STD_LOGIC;                           --Valor inicial de acarreo
+                     nPos: STD_LOGIC_VECTOR (1 downto 0);      --Posiciones a mover
+                     Dir: STD_LOGIC)                           --Direccion de movimiento
+      return STD_LOGIC_VECTOR is
+   begin
+      if Dir = '0' then
+         --Movimientos a la izquierda
+         case nPos is
+         when "00"   => return Cin & Dato(15 downto 13);
+         when "01"   => return Dato(12 downto 9);
+         when "10"   => return Dato(8 downto 5);
+         when others => return Dato(4 downto 1);
+         --Nota: Como no es posible un desplazamiento de 16 bits, el bit 0 no es un
+         --candidato viable
+         end case;
+      else
+         case nPos is
+         --Movimientos a la derecha
+         when "00"   => return Dato(2 downto 0) & Cin;
+         when "01"   => return Dato(6 downto 3);
+         when "10"   => return Dato(10 downto 7);
+         when others => return Dato(14 downto 11);
+         --Nota: De manera similar el bit 15 no es un candidato viable
+         end case;
+      end if;
+      --Nota: en los casos en que la magnitud del desplazamiento sea menor a 4
+      --posiciones, el acarreo de entrada se convierte en un candidato potencial para el
+      --caso particular de que el desplazamiento sea de 0 posiciones
+   end function;
+
+   --Funcion de evaluacion de acarreo para la segunda etapa
+   --------------------------------------------------------
+   --Esta funcion elige la bandera de acarreo final de los 4 posibles candidatos
+   --escogidos en la primera etapa
+   function Carry_S2(Cin: STD_LOGIC_VECTOR (3 downto 0);       --Valores de acarreo
+                     nPos: STD_LOGIC_VECTOR (1 downto 0);      --Posiciones a mover
+                     Dir: STD_LOGIC)                           --Direccion de movimiento
+      return STD_LOGIC is
+   begin
+      if Dir = '0' then
+         --Seleccion hacia la izquierda
+         case nPos is
+         when "00"   => return Cin(3);
+         when "01"   => return Cin(2);
+         when "10"   => return Cin(1);
+         when others => return Cin(0);
+         end case;
+      else
+         --Seleccion hacia la derecha
+         case nPos is
+         when "00"   => return Cin(0);
+         when "01"   => return Cin(1);
+         when "10"   => return Cin(2);
+         when others => return Cin(3);
+         end case;
+      end if;
+   end function;
 begin
-   --Primera etapa del barrel shifter (desplazamiento y rotacion sin acarreo)
-   --------------------------------------------------------------------------
+   -----------------------------
+   -- Primera etapa de la ALU --
+   -----------------------------
+
+   --Proceso para determinar el resultado preliminar de las instrucciones SHL0, SHL1,
+   --ROL, SHR0, SHR1 y ROR
    process (SysClk)
    begin
       if rising_edge(SysClk) then
-         if SysHold = '0' and  CicloInst = '1' then
-            --Se determina la clase de operacion (desplazamiento o rotacion) mediante el
-            --bit 1 del codigo de operacion
-            if CodigoOper(1) = '0' then
-               --Si la operacion es de desplazamiento, se determina la direccion mediante
-               --el bit 2 del codigo de operacion
-               if CodigoOper(2) = '0' then
-                  --Para los desplazamientos a la izquierda, los nibbles se desplazan con
-                  --ceros o unos entrando por la derecha dependiendo del bit 0 del codigo
-                  --de operacion
-                  case OperandoB(3 downto 2) is    --Se desplazan nibles usando los MSB
-                  when "00" =>
-                     RegRotDes <= OperandoA;       --En caso de 0 no se desplaza
-                  when "01" =>
-                     RegRotDes <= OperandoA(11 downto 0) & ( 3 downto 0 => CodigoOper(0));
-                  when "10" =>
-                     RegRotDes <= OperandoA( 7 downto 0) & ( 7 downto 0 => CodigoOper(0));
-                  when others =>
-                     RegRotDes <= OperandoA( 3 downto 0) & (11 downto 0 => CodigoOper(0));
-                  end case;
-               else
-                  --De manera similar, en los desplazamientos a la derecha los unos o
-                  --ceros entran por la izquierda dependiendo del bit 0
-                  case OperandoB(3 downto 2) is
-                  when "00" =>
-                     RegRotDes <= OperandoA;
-                  when "01" =>
-                     RegRotDes <= ( 3 downto 0 => CodigoOper(0)) & OperandoA(15 downto  4);
-                  when "10" =>
-                     RegRotDes <= ( 7 downto 0 => CodigoOper(0)) & OperandoA(15 downto  8);
-                  when others =>
-                     RegRotDes <= (11 downto 0 => CodigoOper(0)) & OperandoA(15 downto 12);
-                  end case;
-               end if;
-            else
-               --Si la operacion es de rotacion, se determina la direccion mediante el
-               --bit 2 del codigo de operacion
-               if CodigoOper(2) = '0' then
-                  --En las rotaciones a la izquierda, los nibbles mas significativos
-                  --reingresan por la derecha
-                  case OperandoB(3 downto 2) is
-                  when "00" =>
-                     RegRotDes <= OperandoA;       --En caso de cero no se rota
-                  when "01" =>
-                     RegRotDes <= OperandoA(11 downto 0) & OperandoA(15 downto 12);
-                  when "10" =>
-                     RegRotDes <= OperandoA( 7 downto 0) & OperandoA(15 downto  8);
-                  when others =>
-                     RegRotDes <= OperandoA( 3 downto 0) & OperandoA(15 downto  4);
-                  end case;
-               else
-                  --En las rotaciones a la derecha, los nibbles menos significativos
-                  --entran por la izquierda
-                  case OperandoB(3 downto 2) is
-                  when "00" =>
-                     RegRotDes <= OperandoA;
-                  when "01" =>
-                     RegRotDes <= OperandoA( 3 downto 0) & OperandoA(15 downto  4);
-                  when "10" =>
-                     RegRotDes <= OperandoA( 7 downto 0) & OperandoA(15 downto  8);
-                  when others =>
-                     RegRotDes <= OperandoA(11 downto 0) & OperandoA(15 downto 12);
-                  end case;
-               end if;
-            end if;
+         if SysHold = '0' and not (CicloInst = '1' and UnitEnable = '1' and
+                                   CodigoOper(1 downto 0) /= "11") then
+            --Si no se habilita la logica de las instrucciones, se limpia el registro
+            RegRotDes <= (others => '0');
+            --Nota: Esta limpieza se hace en las instrucciones ROLC y RORC para no
+            --interferir con ellas (se realiza una rotacion nula en la segunda etapa)
+         elsif SysHold = '0' and  CicloInst = '1' then
+            --El resultado se determina a traves de la funcion de etapa 1 correspondiente
+            RegRotDes <= Barrel_S1(OperandoA, OperandoB(3 downto 2),
+                                   CodigoOper(2), CodigoOper(1), CodigoOper(0));
          end if;
       end if;
    end process;
 
-   --Primera etapa del rotador con acarreo
-   ---------------------------------------
+   --Proceso para trasladar los LSB del operando B a la segunda etapa
    process (SysClk)
    begin
       if rising_edge(SysClk) then
-         if SysHold = '0' and  CicloInst = '1' then
-            --Se determina la direccion de la rotacion mediante el bit 2 del codigo de
-            --operacion
-            if CodigoOper(2) = '0' then
-               --En las rotaciones a la izquierda el acarreo entra por la derecha
-               RegRotC <= OperandoA(14 downto 0) & EntBandC;
-            else
-               --Complementariamente, el acarreo entra por la izquierda en el otro caso
-               RegRotC <= EntBandC & OperandoA(15 downto 1);
-            end if;
-            --Nota: en las operaciones de rotacion con acarreo, se ignora el argumento B
-            --(siempre se rota solo 1 bit)
-         end if;
-      end if;
-   end process;
-
-   --Registros de señales de control para la segunda etapa (ayuda a disminuir el retardo
-   --combinacional)
-   process (SysClk)
-   begin
-      if rising_edge(SysClk) then
-         if SysHold = '0' and  CicloInst = '1' then
-            --Se copian los LSB del operando B y el codigo de operacion completo
+         if SysHold = '0' and not (CicloInst = '1' and UnitEnable = '1') then
+            --Si no se habilita la logica de las instrucciones, se limpia el registro
+            RegOperandoB <= (others => '0');
+         elsif SysHold = '0' and  CicloInst = '1' then
+            --Si la logica se habilita, se hace el traslado
             RegOperandoB <= OperandoB(1 downto 0);
-            RegCodigoOper <= CodigoOper;
          end if;
       end if;
    end process;
 
-   --Segunda etapa del barrel shifter (Desplazamiento y rotacion con o sin acarreo)
-   --------------------------------------------------------------------------------
-   process (RegCodigoOper, RegOperandoB, RegRotDes, RegRotC)
-   begin
-      --Se determina la clase de operacion mediante el bit 1 del codigo de operacion
-      if RegCodigoOper(1) = '0' then
-         --Para las operaciones de desplazamiento, se decide la direccion mediante el bit
-         --2 del codigo de operacion
-         if RegCodigoOper(2) = '0' then
-            --Para los desplazamientos a la izquierda, el operando pre-procesado se
-            --desplaza con ceros o unos entrando por la derecha dependiendo del bit 0 del
-            --codigo de operacion
-            case RegOperandoB is                   --Se desplaza un maximo de 3 bits
-            when "00" =>
-               ValorResultante <= RegRotDes;       --En caso de cero no se desplaza
-            when "01" =>
-               ValorResultante <= RegRotDes(14 downto 0) & (0 downto 0 => RegCodigoOper(0));
-            when "10" =>
-               ValorResultante <= RegRotDes(13 downto 0) & (1 downto 0 => RegCodigoOper(0));
-            when others =>
-               ValorResultante <= RegRotDes(12 downto 0) & (2 downto 0 => RegCodigoOper(0));
-            end case;
-         else
-            --Para los desplazamientos a la derecha, se desplaza con unos o ceros
-            --entrando por la izquierda segun el bit 0 del codigo de operacion
-            case RegOperandoB is
-            when "00" =>
-               ValorResultante <= RegRotDes;
-            when "01" =>
-               ValorResultante <= (0 downto 0 => RegCodigoOper(0)) & RegRotDes(15 downto 1);
-            when "10" =>
-               ValorResultante <= (1 downto 0 => RegCodigoOper(0)) & RegRotDes(15 downto 2);
-            when others =>
-               ValorResultante <= (2 downto 0 => RegCodigoOper(0)) & RegRotDes(15 downto 3);
-            end case;
-         end if;
-      else
-         --Para las operaciones de rotacion, se distingue si involucran el acarreo
-         --mediante el bit 0 del codigo de operacion
-         if RegCodigoOper(0) = '0' then
-            --Para las operaciones de rotacion sin acarreo, se decide la direccion
-            --mediante el bit 2 del codigo de operacion
-            if RegCodigoOper(2) = '0' then
-               --Para las rotaciones a la izquierda, el operando pre-procesado se rota con
-               --los MSB entrando por la derecha
-               case RegOperandoB is                --Se rota un maximo de 3 bits
-               when "00" =>
-                  ValorResultante <= RegRotDes;    --En caso de cero no se rota
-               when "01" =>
-                  ValorResultante <= RegRotDes(14 downto 0) & RegRotDes(15 downto 15);
-               when "10" =>
-                  ValorResultante <= RegRotDes(13 downto 0) & RegRotDes(15 downto 14);
-               when others =>
-                  ValorResultante <= RegRotDes(12 downto 0) & RegRotDes(15 downto 13);
-               end case;
-            else
-               --Para las rotaciones a la derecha, el operando pre-procesado se rota con
-               --los LSB entrando por la izquierda
-               case RegOperandoB is
-               when "00" =>
-                  ValorResultante <= RegRotDes;
-               when "01" =>
-                  ValorResultante <= RegRotDes(0 downto 0) & RegRotDes(15 downto 1);
-               when "10" =>
-                  ValorResultante <= RegRotDes(1 downto 0) & RegRotDes(15 downto 2);
-               when others =>
-                  ValorResultante <= RegRotDes(2 downto 0) & RegRotDes(15 downto 3);
-               end case;
-            end if;
-         else
-            --Para las operaciones de rotacion con acarreo, el valor pre-procesado se
-            --encuentra listo y solo se traslada
-            ValorResultante <= RegRotC;
-         end if;
-      end if;
-   end process;
-
-   --Primera etapa de generacion de bandera de acarreo
-   ---------------------------------------------------
-   --En la primera etapa los 4 candidatos posibles del acarreo son trasladados a la
-   --segunda etapa mediante un registro de 4 bits, de manera que se reduce la cantidad
-   --posible de entradas a los multiplexores. Notese que se da el mismo tratamiento a la
-   --bandera de acarreo en todas las operaciones del barrel shifter sin importar su tipo.
+   --Proceso para determinar el resultado de las instrucciones ROLC y RORC
    process (SysClk)
    begin
       if rising_edge(SysClk) then
-         if SysHold = '0' and  CicloInst = '1' then
-            --Se determina la direccion del desplazamiento/rotacion en base al bit 2 del
-            --codigo de operacion
+         if SysHold = '0' and not (CicloInst = '1' and UnitEnable = '1' and
+                                   CodigoOper(1 downto 0) = "11") then
+            --Si no se habilita la logica de las instrucciones, se limpia el registro
+            RegRotC <= (others => '0');
+         elsif SysHold = '0' and  CicloInst = '1' then
+            --El resultado se determina en base a la direccion de rotacion
             if CodigoOper(2) = '0' then
-               --En las operaciones hacia la izquierda se elige de 16 posibles candidatos
-               --en orden de desplazamiento de izquierda a derecha
-               case OperandoB(3 downto 2) is
-               when "00" =>
-                  --En caso que el desplazamiento inicial sea cero, uno de los posibles
-                  --candidatos incluye a la bandera de acarreo misma (dependera de los
-                  --LSB del operando B si realmente se elige)
-                  RegC <= EntBandC & OperandoA(15 downto 13);
-               when "01" =>
-                  RegC <= OperandoA(12 downto 9);
-               when "10" =>
-                  RegC <= OperandoA(8 downto 5);
-               when others =>
-                  --Notese que es imposible desplazar 16 bits, asi que el bit 0 no es un
-                  --candidato viable
-                  RegC <= OperandoA(4 downto 1);
-               end case;
+               RegRotC <= OperandoA(14 downto 0) & EntBandC;      --ROLC
             else
-               --En las operaciones hacia la derecha, los 16 candidatos se eligen en
-               --orden inverso
-               case OperandoB(3 downto 2) is
-               when "00" =>
-                  --El desplazamiento inicial tembien incluye la bandera de acarreo
-                  --original en caso que el operando B sea 0
-                  RegC <= OperandoA(2 downto 0) & EntBandC;
-               when "01" =>
-                  RegC <= OperandoA(6 downto 3);
-               when "10" =>
-                  RegC <= OperandoA(10 downto 7);
-               when others =>
-                  --Como no es posible desplazar 16 bits, el bit 15 no es un candidato
-                  RegC <= OperandoA(14 downto 11);
-               end case;
+               RegRotC <= EntBandC & OperandoA(15 downto 1);      --RORC
             end if;
          end if;
       end if;
    end process;
 
-   --Segunda etapa de generacion de bandera de acarreo
-   ---------------------------------------------------
-   --En la segunda etapa la bandera de acarreo final se elige de los 4 posibles
-   --candidatos escogidos en la primera etapa
-   process (RegCodigoOper(2), RegOperandoB, RegC)
+   --Proceso para determinar el resultado previo del acarreo para todas las instrucciones
+   process (SysClk)
    begin
-      --La direccion de rotacion se determina con el bit 2 del codigo de operacion
-      if RegCodigoOper(2) = '0' then
-         --En las operaciones hacia la izquierda se eligen un candidato comenzando por el
-         --de la izquierda
-         case RegOperandoB is
-         when "00" =>
-            SalBandC <= RegC(3);
-         when "01" =>
-            SalBandC <= RegC(2);
-         when "10" =>
-            SalBandC <= RegC(1);
-         when others =>
-            SalBandC <= RegC(0);
-         end case;
-      else
-         --De manera similar, para el otro sentido se elige un candidato iniciando por el
-         --de la derecha
-         case RegOperandoB is
-         when "00" =>
-            SalBandC <= RegC(0);
-         when "01" =>
-            SalBandC <= RegC(1);
-         when "10" =>
-            SalBandC <= RegC(2);
-         when others =>
-            SalBandC <= RegC(3);
-         end case;
+      if rising_edge(SysClk) then
+         if SysHold = '0' and not (CicloInst = '1' and UnitEnable = '1') then
+            --Si no se habilita la logica de las instrucciones, se limpia el registro
+            RegC <= (others => '0');
+         elsif SysHold = '0' and  CicloInst = '1' then
+            --El resultado se determina a traves de la funcion de etapa 1 correspondiente
+            RegC <= Carry_S1(OperandoA, EntBandC, OperandoB(3 downto 2), CodigoOper(2));
+         end if;
       end if;
    end process;
 
-   --Asignacion del resultado:
-   Resultado <= ValorResultante;
+   --Traslado de las señales de control a la segunda etapa
+   -------------------------------------------------------
+   --El codigo de operacion es trasladado para determinar el resultado final
+   RegCodigoOper <= CodigoOper
+                    when rising_edge(SysClk) and SysHold = '0' and CicloInst = '1';
 
-   --La bandera de cero se activa si el resultado fue 0:
-   SalBandZ <= '1' when ValorResultante = 0 else '0';
+   --El registro de habilitacion de salida se activa en el ciclo siguiente si se
+   --descodifica una instruccion valida
+   RegOutputEn <= CicloInst and UnitEnable when rising_edge(SysClk) and SysHold = '0';
 
-   --La bandera de negativo toma el valor del nuevo MSB:
-   SalBandN <= ValorResultante(nBits_ALU-1);
+   -----------------------------
+   -- Segunda etapa de la ALU --
+   -----------------------------
+   --El resultado para las instrucciones de rotacion/desplazamieto se determina con la
+   --funcion de barrel shifter para etapa 2
+   ResultadoRotDes <= Barrel_S2(RegRotDes, RegOperandoB,
+                                RegCodigoOper(2), RegCodigoOper(1), RegCodigoOper(0));
+
+   --Dado que los registros de cada etapa se limpian cuando no se descodifica la
+   --instruccion correspondiente, el resultado final es simplemente la combinacion OR del
+   --resultado de rotacion/desplazamiento con el de rotacion con acarreo
+   ResultadoFinal <= ResultadoRotDes or RegRotC;
+
+   --Conexion del resultado final a la salida de la ALU
+   Resultado <= ResultadoFinal;
+
+   --La bandera de acarreo se determina mediante la funcion de etapa 2 correspondiente
+   SalBand.C <= Carry_S2(RegC, RegOperandoB, RegCodigoOper(2));
+
+   --La bandera de cero se activa siempre que el resultado sea cero y la salida se active
+   SalBand.Z <= '1' when ResultadoFinal = 0 and RegOutputEn = '1' else '0';
+
+   --La bandera de negativo es igual al MSB del resultado final
+   SalBand.N <= ResultadoFinal(JPU16_DataBits-1);
+
+   --Nota: Las banderas C y N no son afectadas por el registro de habilitacion de salida,
+   --puesto que los registros de donde provienen sus datos iniciales son limpiados en la
+   --primera etapa en caso que la unidad se deshabilite
 end Funcionamiento;
