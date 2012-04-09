@@ -124,7 +124,9 @@ begin
 
    --Bus R
    BusR.Salida <= BusR.Ent_ALU_LBSR or BusR.Ent_ALU_M or BusR.Ent_ALU_LD
-                  or BusR.Ent_BUS_Q or BusR.Ent_RAM or BusR.Ent_IO;
+                  or BusR.Ent_BUS_Q
+                  or (BusR.Ent_RAM and (15 downto 0 => InstVal.MoveRamRd)) --bug fix
+                  or BusR.Ent_IO;
 
    ------------------------------------------------
    -- Mapeo de los puertos de entradas y salidas --
