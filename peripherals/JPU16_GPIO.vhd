@@ -39,9 +39,9 @@ package JPU16_GPIO_Pack is
    component JPU16_GPIO is
    generic (nDataBits: integer := 16;
             Addr_Mask: JPU16_IO_ADDR_BUS := X"0003";
-            GPI_Addr:  JPU16_IO_ADDR_BUS := X"0000";
-            GPO_Addr:  JPU16_IO_ADDR_BUS := X"0001";
-            DDR_Addr:  JPU16_IO_ADDR_BUS := X"0002");
+            GPI_Addr:  JPU16_IO_ADDR_BUS := X"0001";
+            GPO_Addr:  JPU16_IO_ADDR_BUS := X"0002";
+            DDR_Addr:  JPU16_IO_ADDR_BUS := X"0003");
    port (SysClk:   in  STD_LOGIC;
          Reset:    in  STD_LOGIC;
          SysHold:  in  STD_LOGIC;
@@ -65,9 +65,9 @@ use work.JPU16_Pack.all;
 entity JPU16_GPIO is
    generic (nDataBits: integer := 16;                --Anchura del puerto
             Addr_Mask: JPU16_IO_ADDR_BUS := X"0003"; --Mascara de direccion
-            GPI_Addr:  JPU16_IO_ADDR_BUS := X"0000"; --Locacion del registro de entrada
-            GPO_Addr:  JPU16_IO_ADDR_BUS := X"0001"; --Locacion del registro de salida
-            DDR_Addr:  JPU16_IO_ADDR_BUS := X"0002");--Locacion del registro de direccion
+            GPI_Addr:  JPU16_IO_ADDR_BUS := X"0001"; --Locacion del registro de entrada
+            GPO_Addr:  JPU16_IO_ADDR_BUS := X"0002"; --Locacion del registro de salida
+            DDR_Addr:  JPU16_IO_ADDR_BUS := X"0003");--Locacion del registro de direccion
    port (SysClk:   in  STD_LOGIC;                                 --Entrada de reloj
          Reset:    in  STD_LOGIC;                                 --Entrada de reset
          SysHold:  in  STD_LOGIC;                                 --Entrada de retencion
