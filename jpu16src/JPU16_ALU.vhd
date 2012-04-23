@@ -126,16 +126,16 @@ begin
 
    -- Seleccion del resultado a la salida de la ALU
    ------------------------------------------------
-   --De acuerdo al registro de habilitacion de salida y el codigo de operacion, se
-   --determina si la salida tendra 0, el resultado de la operacion de logica binaria
-   --(NOT, OR, AND o XOR) o el resultado de la suma/resta (ADD, ADDC, SUB, SUBB)
+   --De acuerdo al codigo de operacion, se determina si la salida tendra el resultado de
+   --la operacion de logica binaria (NOT, OR, AND o XOR) o el resultado de la suma/resta
+   --(ADD, ADDC, SUB, SUBB)
    ResultadoFinal <=
-      (others => '0') when RegDataEn = '0' else    --Salida deshabilitada
       ResultadoLB when RegCodigoOper0 = '0'  else  --Operaciones de logica binaria
       ResultadoSR(JPU16_DataBits-1 downto 0);      --Operaciones de suma y resta
 
    --Conexion del resultado final a la salida de la ALU
-   Resultado <= ResultadoFinal;
+   Resultado <= ResultadoFinal when RegDataEn = '1' else    --Salida habilitada
+                (others => '0');                            --Salida deshabilitada
 
    -- Determinacion del resultado de las banderas
    ----------------------------------------------
