@@ -7,11 +7,14 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
-use work.JPU16_Pack.all;
+
 
 package JPU16_PWM_Pack is
+	
+
 	component JPU16_PWM is 
-	Generic( BusAncho:		integer := 16;
+	Generic( 		BusAncho:		integer  := 16;
+				nBit_DC:		integer := 4;
 				Mascara:			STD_LOGIC_VECTOR(15 downto 0) := X"000C";
 				DirPeriod:		STD_LOGIC_VECTOR(15 downto 0) := X"0004";
 				DirControlPwm: STD_LOGIC_VECTOR(15 downto 0) := X"0008";
@@ -25,20 +28,25 @@ package JPU16_PWM_Pack is
 			IO_WE: 	in STD_LOGIC;
 			Reset:   in STD_LOGIC;
 			IntLine: out STD_LOGIC;
-			PwmOut:  out STD_LOGIC
+			PwmOut:  out STD_LOGIC_VECTOR(2**nBit_DC-1 downto 0)
 	);
 	end component;
 end package;
+
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
-use work.JPU16_Pack.all;
 
+	
+	
 
 entity JPU16_PWM is
-	Generic( BusAncho:		integer := 16;
+
+	
+	Generic( 		BusAncho:		integer  := 16;
+				nBit_DC:		integer := 4;
 				Mascara:			STD_LOGIC_VECTOR(15 downto 0) := X"000C";
 				DirPeriod:		STD_LOGIC_VECTOR(15 downto 0) := X"0004";
 				DirControlPwm: STD_LOGIC_VECTOR(15 downto 0) := X"0008";
@@ -52,11 +60,13 @@ entity JPU16_PWM is
 			IO_WE: 	in STD_LOGIC;
 			Reset:   in STD_LOGIC;
 			IntLine: out STD_LOGIC;
-			PwmOut:  out STD_LOGIC
+			PwmOut:  out STD_LOGIC_VECTOR(2**nBit_DC-1 downto 0)
 	);
 end JPU16_PWM;
 
 architecture Behavioral of JPU16_PWM is
+	type TYPE_DutyCycleReg is array (2**nBit_DC-1 downto 0) of
+	STD_LOGIC_VECTOR (11 downto 0);
 	
 	signal ControlPwmReg: std_logic_vector (BusAncho - 1 downto 0) := (others => '0');
 	alias Prescale:	std_logic_vector is ControlPwmReg(3 downto 0);
@@ -64,19 +74,24 @@ architecture Behavioral of JPU16_PWM is
 	alias	PolOut: 		std_logic is ControlPwmReg(5);
 	alias PhaseBit: 	std_logic is ControlPwmReg(6);
 	alias OVF_Enable: std_logic is ControlPwmReg(7);
-	alias OVF_Flag: 	std_logic is ControlPwmReg(8);
-	
+	alias OVF_Flag: 	std_logic is ControlPwmReg(15);
+	alias DutyCycleDecoder:  std_logic_vector is ControlPwmReg(8 + nBit_DC - 1 downto 8);
+
+	signal Pwm_EnableReg: std_logic_vector(PwmOut'range);
+	signal PolOutReg: std_logic_vector(PwmOut'range);
 	signal PrescalerCount: std_logic_vector (BusAncho-2 downto 0) := (others => '0');
 	signal PrescalerReg:   std_logic_vector (BusAncho-2 downto 0) := (others => '0');
 	
 	signal CountEnable:  std_logic;
 	
 	signal CountPwm: 		std_logic_vector (11 downto 0) := (others => '0');
-	signal DutyCyclePwm: std_logic_vector (11 downto 0) := (others => '0');
-	signal DCREG: 			std_logic_vector (11 downto 0) := (others => '0');
-	signal PeriodReg: 	std_logic_vector (11 downto 0) := (others => '0');
+	signal PeriodReg: 	std_logic_vector (11 downto 0) := (others => '0');	
 	
-	signal PwmOutReg:    std_logic;
+	signal DutyCyclePwm: TYPE_DutyCycleReg := (others => (others => '0'));
+	signal DCREG: 	     TYPE_DutyCycleReg := (others => (others => '0'));
+	
+	
+	signal PwmOutReg:    std_logic_vector(PwmOut'range);
 	
 	signal PhaseControlBit: std_logic := '0';
 
@@ -92,7 +107,14 @@ begin
 	CountEnable <= '1' when PrescalerReg = PrescalerCount else '0';
 	
 	OVFPwm <= '1' when CountPwm = PeriodReg else '0';
+
 	PreOVFPwm <= '1' when CountPwm = (PeriodReg-1) else '0';
+
+	PwmOutGen: 
+	for i in 0 to 15 generate
+		PwmOutReg(i) <= '1' when DutyCyclePwm(i) > CountPwm else '0';
+	end generate PwmOutGen;
+	
 	process(SysClk, Pwm_Enable)
 	begin
 		if rising_edge(SysClk) then
@@ -122,11 +144,12 @@ begin
 	end process;
 	
 
-	PwmOutReg <= '1' when DutyCyclePwm > CountPwm else '0';
-	PwmOut <= (PwmOutReg xor PolOut) and Pwm_Enable ;
-	
+	PolOutReg <= (others => '1') when PolOut = '1' else (others => '0');
+	Pwm_EnableReg <= (others => '1') when Pwm_Enable = '1' else (others => '0');
+	PwmOut <= (PwmOutReg xor PolOutReg) and Pwm_EnableReg ;
+
 ---------------------------------------------------------------
-	DutyCyclePwm <= DCREG when rising_edge(SysClk) and OVFPwm = '1' else DutyCyclePwm;
+	DutyCyclePwm(conv_integer(DutyCycleDecoder)) <= DCREG(conv_integer(DutyCycleDecoder)) when rising_edge(SysClk) and OVFPwm = '1' else DutyCyclePwm(conv_integer(DutyCycleDecoder));
 ---------------------------------------------------------------	
 	process(SysClk, PhaseBit, CountPwm)
 	begin
@@ -167,7 +190,7 @@ begin
 		end if;
 	end process;
 	
--- Write Enable for 	DCREG
+-- Write Enable for 	DCREG arrays
 	process(SysClk)
 	begin
 		if rising_edge(SysClk) then
@@ -184,9 +207,9 @@ begin
 	begin
 		if rising_Edge(SysClk) then
 			if Reset = '1' then
-				DCREG <= (others => '0');			 
+				DCREG(conv_integer(DutyCycleDecoder)) <= (others => '0');			 
 			elsif DCREG_RWE = '1' and IO_WE='1' then
-				DCREG <= IO_Dout(DCREG'range);
+				DCREG(conv_integer(DutyCycleDecoder)) <= IO_Dout(CountPwm'range);
 			end if;
 		end if;
 	end process;
@@ -208,7 +231,7 @@ begin
 	begin
 		if rising_Edge(SysClk) then
 			if Reset = '1' then
-				ControlPwmReg<= (others => '0');			 
+				ControlPwmReg <= (others => '0');			 
 			elsif ControlPwmReg_RWE = '1' and IO_WE='1' then
 				ControlPwmReg <= IO_Dout;
 			elsif OVFPwm = '1' then
@@ -218,9 +241,9 @@ begin
 	end process;	
 ---------------------------------------------------------------
 -- Reading Control Registers
-	IO_Din <= "0000" & DCREG 			when DCREG_RWE = '1' 		and IO_RD = '1' else
+	IO_Din <= "0000" & DCREG(conv_integer(DutyCycleDecoder)) when DCREG_RWE = '1' and IO_RD = '1' else
 				 ControlPwmReg when ControlPwmReg_RWE='1' and IO_RD = '1' else
-				 "0" & PeriodReg		when Period_RWE = '1' 		and IO_RD = '1' else (others => '0');
+				 "0000" & PeriodReg		when Period_RWE = '1' 		and IO_RD = '1' else (others => '0');
 -------------------------------------------------------------------------
 
 -- Prescaler Table 
@@ -241,7 +264,7 @@ begin
 							"000111111111111" when Prescale = 12 else
 							"001111111111111" when Prescale = 13 else
 							"011111111111111" when Prescale = 14 else
-							"111111111111111" when Prescale = 15;
+							"111111111111111" ;
 --------------------------------------------------
 end Behavioral;
 
