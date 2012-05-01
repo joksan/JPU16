@@ -144,12 +144,29 @@ begin
 	end process;
 	
 
-	PolOutReg <= (others => '1') when PolOut = '1' else (others => '0');
-	Pwm_EnableReg <= (others => '1') when Pwm_Enable = '1' else (others => '0');
-	PwmOut <= (PwmOutReg xor PolOutReg) and Pwm_EnableReg ;
+--	PolOutReg <= (others => '1') when PolOut = '1' else (others => '0');
+--	Pwm_EnableReg <= (others => '1') when Pwm_Enable = '1' else (others => '0');
+--	PwmOut <= (PwmOutReg xor PolOutReg) and Pwm_EnableReg ;
+	PwmOutP: process(Pwm_Enable)
+	begin
+		if Pwm_Enable = '0' then
+			PwmOut <= (others => '0');
+		else
+			if PolOut = '1' then
+				PwmOut <= not PwmOutReg;
+			else
+				PwmOut <=  PwmOutReg;
+			end if;
+		end if;
+	end process;
 
 ---------------------------------------------------------------
-	DutyCyclePwm(conv_integer(DutyCycleDecoder)) <= DCREG(conv_integer(DutyCycleDecoder)) when rising_edge(SysClk) and OVFPwm = '1' else DutyCyclePwm(conv_integer(DutyCycleDecoder));
+	--DutyCyclePwm(conv_integer(DutyCycleDecoder)) <= DCREG(conv_integer(DutyCycleDecoder)) when rising_edge(SysClk) and OVFPwm = '1' else DutyCyclePwm(conv_integer(DutyCycleDecoder));
+	DCProcess:
+	for i in 0 to 15 generate
+		DutyCyclePwm(i) <= DCREG(i) when rising_edge(SysClk) and OVFPwm = '1';
+	end generate DCProcess;
+	
 ---------------------------------------------------------------	
 	process(SysClk, PhaseBit, CountPwm)
 	begin
@@ -231,11 +248,14 @@ begin
 	begin
 		if rising_Edge(SysClk) then
 			if Reset = '1' then
-				ControlPwmReg <= (others => '0');			 
+--				OVF_Flag <= '0';
+				Pwm_Enable <= '0';
 			elsif ControlPwmReg_RWE = '1' and IO_WE='1' then
 				ControlPwmReg <= IO_Dout;
-			elsif OVFPwm = '1' then
-				OVF_Flag <= '1';
+--			else
+--				if OVFPwm = '1' then
+--					OVF_Flag <= '1';
+--				end if;
 			end if;
 		end if;
 	end process;	
