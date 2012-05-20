@@ -372,7 +372,7 @@ bool agregar_dato_ram(int dato, int num_lin) {
   }
 
   //Si todo esta bien, guarda el dato en la memoria RAM y desmarca la localidad como disponible
-  datos_ram[pos_ram] = dato;
+  datos_ram[pos_ram] = dato & 0xFFFF;
   pos_ram++;                    //Apunta a la siguiente posicion de la memoria
   return true;
 }
