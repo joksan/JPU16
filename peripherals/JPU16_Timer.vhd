@@ -92,7 +92,7 @@ architecture Funcionamiento of JPU16_Timer is
 begin
 --------- Timer counter definition ------------------
 -- Count Timer Flag is set when the timer counts to the period value.
-	CTF <= '1' when TMRCNT = TMRPR else '0';
+	CTF <= '1' when TMRCNT = TMRPR and CEB = '1' else '0';
 	
 -- Process for TMRCNT 
 	process (SysClk)
@@ -197,8 +197,8 @@ begin
 -- IO_Din is the Bus that connect the ouput data, to JPU16 input port
 -- if the timer unit is not required for reading process, IO_Din signal gives a clear data for the OR Bus implemented in JPU16.
 	IO_Din <= TMRCNT  when TMRCNT_RE  = '1' and IO_RD = '1' else    
-		  TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
-		  TMRPR   when TMRPR_RE   = '1' and IO_RD = '1' else (others => '0');
+				 TMRCTRL when TMRCTRL_RE = '1' and IO_RD = '1' else
+				 TMRPR   when TMRPR_RE   = '1' and IO_RD = '1' else (others => '0');
 
 
 --  Read Enable Process for Timer Count Register	
@@ -280,7 +280,7 @@ begin
 		"000111111111111" when PTI = 12 else
 		"001111111111111" when PTI = 13 else
 		"011111111111111" when PTI = 14 else
-		"111111111111111" when PTI = 15;
+		"111111111111111" ;
 --------------------------------------------------
 
 end Funcionamiento;

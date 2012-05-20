@@ -2,6 +2,38 @@
 -- --------------------------------------------------------------------------
 --Author: Jonathan Castro
 -- --------------------------------------------------------------------------
+-- This is a Multichannel Pulse Width Modulator unit for JPU16, that provides the next features:
+-- - 12-bit PWM module.
+-- - Period of 12-bit.
+-- - Polarity Control Out.
+-- - Phase Shifted Control.
+-- - Interruption in any period count.
+-- - Duty Cycle selection control for Multichannel outs.
+
+-- The Registers related to the module are:
+
+-- DUTY CYCLE REGISTER: Accessing to this module, the value of the actual pointed register for  PWMCONTROL<14:8>, it could be readen and wrotten.
+
+
+-- PWM CONTROL REGISTER : This register allows the Turning ON/OFF of the module, Prescale, Polarity, Phase Shifted control and Enable and Flag Bits for interruption.
+
+-- PWMCONTROL<3:0> : Prescale Bits, to calc the prescale value 2^n.
+-- PWMCONTROL<4>   : PWM Module is ON where the bit is set.
+-- PWMCONTROL<5>   : Polarity Control Bit.
+-- PWMCONTROL<6>   : Phase Shifted Control Bit.
+-- PWMCONTROL<7>   : Enable for Interruption. 
+-- PWMCONTROL<15>  : Flag for Interruption, It is set when the internal timer counts to period value, it is cleared by software.
+-- PWMCONTROL<14:8> : Reserved for de Duty Cycle selector, the number of channels is variable from 1 to 64 channels are available, by default, the module provides 16 channels, but to modify this value, only affects the value of the respective generic.
+
+-- PERIOD REGISTER: The frecuency of the module is affected by this period, this is a 12-bit register as DCREG.
+
+-- The calculus of the PWM Period is given by the next formula:
+
+--When  PWMCONTROL<6> is '0':
+-- 	PWMPeriod = FOSC * Prescale * (PeriodReg + 1)   
+
+--When  PWMCONTROL<6> is '1':
+-- 	PWMPeriod = 2 * FOSC * Prescale * (PeriodReg + 1)   
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -144,9 +176,7 @@ begin
 	end process;
 	
 
---	PolOutReg <= (others => '1') when PolOut = '1' else (others => '0');
---	Pwm_EnableReg <= (others => '1') when Pwm_Enable = '1' else (others => '0');
---	PwmOut <= (PwmOutReg xor PolOutReg) and Pwm_EnableReg ;
+
 	PwmOutP: process(Pwm_Enable)
 	begin
 		if Pwm_Enable = '0' then
@@ -161,7 +191,7 @@ begin
 	end process;
 
 ---------------------------------------------------------------
-	--DutyCyclePwm(conv_integer(DutyCycleDecoder)) <= DCREG(conv_integer(DutyCycleDecoder)) when rising_edge(SysClk) and OVFPwm = '1' else DutyCyclePwm(conv_integer(DutyCycleDecoder));
+
 	DCProcess:
 	for i in 0 to 15 generate
 		DutyCyclePwm(i) <= DCREG(i) when rising_edge(SysClk) and OVFPwm = '1';
@@ -248,43 +278,43 @@ begin
 	begin
 		if rising_Edge(SysClk) then
 			if Reset = '1' then
---				OVF_Flag <= '0';
+				OVF_Flag <= '0';
 				Pwm_Enable <= '0';
 			elsif ControlPwmReg_RWE = '1' and IO_WE='1' then
 				ControlPwmReg <= IO_Dout;
---			else
---				if OVFPwm = '1' then
---					OVF_Flag <= '1';
---				end if;
+			else
+				if OVFPwm = '1' then
+					OVF_Flag <= '1';
+				end if;
 			end if;
 		end if;
 	end process;	
 ---------------------------------------------------------------
 -- Reading Control Registers
-	IO_Din <= "0000" & DCREG(conv_integer(DutyCycleDecoder)) when DCREG_RWE = '1' and IO_RD = '1' else
-				 ControlPwmReg when ControlPwmReg_RWE='1' and IO_RD = '1' else
-				 "0000" & PeriodReg		when Period_RWE = '1' 		and IO_RD = '1' else (others => '0');
+	IO_Din <= "0000" & DCREG(conv_integer(DutyCycleDecoder)) when DCREG_RWE = '1'       and IO_RD = '1' else
+		  ControlPwmReg 				 when ControlPwmReg_RWE='1' and IO_RD = '1' else
+		  "0000" & PeriodReg				 when Period_RWE = '1' 	    and IO_RD = '1' else (others => '0');
 -------------------------------------------------------------------------
 
 -- Prescaler Table 
 ------------------------------------------------------------------- 	
 
 	PrescalerReg <= 	"000000000000000" when Prescale = 0 else
-							"000000000000001" when Prescale = 1 else
-							"000000000000011" when Prescale = 2 else
-							"000000000000111" when Prescale = 3 else
-							"000000000001111" when Prescale = 4 else
-							"000000000011111" when Prescale = 5 else
-							"000000000111111" when Prescale = 6 else
-							"000000001111111" when Prescale = 7 else
-							"000000011111111" when Prescale = 8 else
-							"000000111111111" when Prescale = 9 else
-							"000001111111111" when Prescale = 10 else
-							"000011111111111" when Prescale = 11 else
-							"000111111111111" when Prescale = 12 else
-							"001111111111111" when Prescale = 13 else
-							"011111111111111" when Prescale = 14 else
-							"111111111111111" ;
+				"000000000000001" when Prescale = 1 else
+				"000000000000011" when Prescale = 2 else
+				"000000000000111" when Prescale = 3 else
+				"000000000001111" when Prescale = 4 else
+				"000000000011111" when Prescale = 5 else
+				"000000000111111" when Prescale = 6 else
+				"000000001111111" when Prescale = 7 else
+				"000000011111111" when Prescale = 8 else
+				"000000111111111" when Prescale = 9 else
+				"000001111111111" when Prescale = 10 else
+				"000011111111111" when Prescale = 11 else
+				"000111111111111" when Prescale = 12 else
+				"001111111111111" when Prescale = 13 else
+				"011111111111111" when Prescale = 14 else
+				"111111111111111" ;
 --------------------------------------------------
 end Behavioral;
 
